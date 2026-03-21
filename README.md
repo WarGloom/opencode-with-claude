@@ -133,6 +133,7 @@ The `oc` launcher handles everything — starts the proxy, waits for health, lau
 ```bash
 oc              # Start OpenCode TUI in current directory
 oc web          # Start OpenCode web UI on port 4096
+oc update       # Update all components to latest versions
 oc --help       # Show help
 oc --version    # Show component versions
 ```
@@ -165,6 +166,8 @@ docker exec -it -u opencode opencode-with-claude opencode auth list
 | `CLAUDE_PROXY_PORT` | random | Port for the proxy server |
 | `CLAUDE_PROXY_WORKDIR` | `$PWD` | Working directory for the proxy |
 | `OC_SKIP_AUTH_CHECK` | unset | Set to `1` to skip Claude auth check on launch |
+| `OC_AUTO_UPDATE` | unset | Set to `true` or `1` to auto-update components on Docker container start |
+| `OC_AUTO_UPDATE` | unset | Set to `true` or `1` to auto-update components on Docker container start |
 
 ### OpenCode config
 
@@ -226,10 +229,14 @@ CLAUDE_PROXY_PORT=3456 oc
 ### Updating components
 
 ```bash
-npm update -g @anthropic-ai/claude-code opencode-ai opencode-claude-max-proxy
+oc update
 ```
 
-Or re-run the installer, which will update all components.
+This updates all three npm packages (Claude Code CLI, OpenCode, and claude-max-proxy) to their latest versions and refreshes the `oc` launcher itself. It shows before/after version diffs so you can see what changed.
+
+You can also re-run the installer, which will now update existing packages instead of skipping them.
+
+For Docker containers, either rebuild the image (`docker compose build --no-cache`) or set `OC_AUTO_UPDATE=true` in your environment to auto-update on container start.
 
 ## Uninstalling
 

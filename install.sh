@@ -269,7 +269,12 @@ install_package() {
     local display_name="$3"
 
     if has_real_bin "$bin_name"; then
-        ok "$display_name already installed"
+        info "$display_name already installed, updating to latest..."
+        if $pkg_install_global "$name" 2>&1 | tail -5; then
+            ok "$display_name updated"
+        else
+            warn "Failed to update $display_name. Try manually: $pkg_install_global $name"
+        fi
     else
         info "Installing $display_name..."
         if $pkg_install_global "$name" 2>&1 | tail -5; then
@@ -366,20 +371,17 @@ step "Installing oc launcher..."
 
 mkdir -p "$INSTALL_DIR"
 
-# Download the launcher script from the repo
-if curl -fsSL "$OC_LAUNCHER_URL" -o "$INSTALL_DIR/oc" 2>/dev/null; then
+# Prefer local copy if running from a clone, otherwise download from GitHub
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)"
+if [[ -f "$SCRIPT_DIR/bin/oc" ]]; then
+    cp "$SCRIPT_DIR/bin/oc" "$INSTALL_DIR/oc"
     chmod 755 "$INSTALL_DIR/oc"
-    ok "Installed oc to $INSTALL_DIR/oc"
+    ok "Installed oc from local repo to $INSTALL_DIR/oc"
+elif curl -fsSL "$OC_LAUNCHER_URL" -o "$INSTALL_DIR/oc" 2>/dev/null; then
+    chmod 755 "$INSTALL_DIR/oc"
+    ok "Downloaded oc to $INSTALL_DIR/oc"
 else
-    # Fallback: copy from local repo if we're running from a clone
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)"
-    if [[ -f "$SCRIPT_DIR/bin/oc" ]]; then
-        cp "$SCRIPT_DIR/bin/oc" "$INSTALL_DIR/oc"
-        chmod 755 "$INSTALL_DIR/oc"
-        ok "Copied oc from local repo to $INSTALL_DIR/oc"
-    else
-        fail "Couldn't download or find oc launcher. Install manually from $REPO"
-    fi
+    fail "Couldn't download or find oc launcher. Install manually from $REPO"
 fi
 
 # =============================================================================

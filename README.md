@@ -1,8 +1,6 @@
 # opencode-with-claude
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/ianjwhite99/opencode-with-claude)](https://github.com/ianjwhite99/opencode-with-claude/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/ianjwhite99/opencode-with-claude)](https://github.com/ianjwhite99/opencode-with-claude/issues)
 
 Use [OpenCode](https://opencode.ai) with your [Claude Max](https://claude.ai) subscription — no API credits needed.
 

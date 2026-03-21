@@ -6,8 +6,12 @@
 FROM node:22-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl git \
+    && apt-get install -y --no-install-recommends ca-certificates curl git unzip \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN curl -fsSL https://bun.sh/install | bash \
+    && cp /root/.bun/bin/bun /usr/local/bin/bun \
+    && chmod 755 /usr/local/bin/bun
 
 RUN npm install -g @anthropic-ai/claude-code opencode-claude-max-proxy opencode-ai \
     && npm cache clean --force
@@ -30,9 +34,7 @@ COPY --chown=opencode:opencode --chmod=755 bin/entrypoint.sh /home/opencode/entr
 ENV CLAUDE_PROXY_PASSTHROUGH=1 \
     CLAUDE_PROXY_HOST=127.0.0.1 \
     CLAUDE_PROXY_PORT=3456 \
-    OPENCODE_HOST=0.0.0.0 \
-    ANTHROPIC_API_KEY=dummy \
-    ANTHROPIC_BASE_URL=http://127.0.0.1:3456
+    OPENCODE_HOST=0.0.0.0
 
 ENTRYPOINT ["/home/opencode/entrypoint.sh"]
 

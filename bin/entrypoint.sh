@@ -9,6 +9,14 @@ set -e
 
 # --- Root → user switch (for Docker volume ownership) ---
 if [ "$(id -u)" = "0" ]; then
+    # Copy root's Claude auth to opencode user if login was done as root
+    if [ -f /root/.claude.json ] && [ ! -f /home/opencode/.claude/.claude.json ]; then
+        cp /root/.claude.json /home/opencode/.claude/.claude.json 2>/dev/null || true
+    fi
+    if [ -d /root/.claude ] && [ "$(ls -A /root/.claude 2>/dev/null)" ]; then
+        cp -rn /root/.claude/* /home/opencode/.claude/ 2>/dev/null || true
+    fi
+
     chown opencode:opencode /home/opencode
     chown -R opencode:opencode \
       /home/opencode/.claude \
@@ -60,13 +68,16 @@ else
   echo "  Claude Code CLI is not authenticated!"
   echo ""
   echo "  Run:"
-  echo "    docker exec -it opencode-with-claude claude login"
+  echo "    docker exec -it -u opencode opencode-with-claude claude login"
   echo "============================================"
   echo ""
   echo "[opencode-with-claude] Starting without auth. Proxy will fail until you log in."
 fi
 
 # --- Start proxy in background ---
+# Unset vars that would cause the SDK subprocess to loop back to the proxy
+unset ANTHROPIC_BASE_URL ANTHROPIC_API_KEY 2>/dev/null || true
+
 echo "[opencode-with-claude] Starting proxy on port $PROXY_PORT..."
 CLAUDE_PROXY_WORKDIR=/home/opencode/workspace \
 CLAUDE_PROXY_PORT="$PROXY_PORT" \

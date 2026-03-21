@@ -7,11 +7,11 @@ Use [OpenCode](https://opencode.ai) with your [Claude Max](https://claude.ai) su
 ## How It Works
 
 ```
-┌─────────────┐       ┌──────────────────┐       ┌───────────────┐
-│   OpenCode   │──────▶│  Claude Max Proxy │──────▶│   Claude Max   │
-│   (TUI/Web)  │ :3456 │  (local server)   │  SDK  │  (your $100/mo │
-│              │◀──────│                    │◀──────│   subscription)│
-└─────────────┘       └──────────────────┘       └───────────────┘
+┌─────────────┐       ┌────────────────────┐       ┌─────────────────┐
+│  OpenCode   │──────▶│  Claude Max Proxy  │──────▶│    Anthropic    │
+│  (TUI/Web)  │ :3456 │   (local server)   │  SDK  │    Claude Max   │
+│             │◀──────│                    │◀──────│                 │
+└─────────────┘       └────────────────────┘       └─────────────────┘
 ```
 
 [OpenCode](https://opencode.ai) speaks the Anthropic REST API. Claude Max provides access via the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) (not the REST API). The [opencode-claude-max-proxy](https://github.com/rynfar/opencode-claude-max-proxy) bridges the gap — it accepts API requests from OpenCode and translates them into Agent SDK calls using your Claude Max session.

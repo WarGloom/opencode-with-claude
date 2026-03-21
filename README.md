@@ -1,4 +1,4 @@
-# opencode-claude-proxy
+# opencode-with-claude
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -34,7 +34,7 @@ Global (`~/.config/opencode/opencode.json`) or project-level:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-claude-proxy"],
+  "plugin": ["opencode-with-claude"],
   "provider": {
     "anthropic": {
       "options": {
@@ -98,7 +98,7 @@ The proxy takes a moment to initialize. If this persists:
 ### Project Structure
 
 ```
-opencode-claude-proxy/
+opencode-with-claude/
 ├── src/
 │   └── index.ts           # Plugin entry point
 ├── test/

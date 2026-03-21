@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Test runner for opencode-claude-proxy plugin
+# Test runner for opencode-with-claude plugin
 #
 # Builds the plugin, sets up a local plugin directory, and launches OpenCode
 # so you can verify the plugin works end-to-end.

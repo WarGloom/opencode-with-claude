@@ -74,7 +74,7 @@ async function waitForHealth(
 export const ClaudeMaxPlugin: Plugin = async ({ client, $, directory }) => {
   const log = (level: "debug" | "info" | "warn" | "error", message: string) =>
     client.app.log({
-      body: { service: "opencode-claude-proxy", level, message },
+      body: { service: "opencode-with-claude", level, message },
     })
 
   // 1. Check claude CLI exists

@@ -1,6 +1,6 @@
 import type { AddressInfo } from "net"
-import type { LogFn, LogLevel } from "./logger.js"
-import { startProxyServer } from "opencode-claude-max-proxy"
+import type { LogFn, LogLevel } from "./logger"
+import { startProxyServer } from "@rynfar/meridian"
 
 const IS_WINDOWS = process.platform === "win32"
 
@@ -80,8 +80,8 @@ export async function startProxy(opts: StartProxyOptions): Promise<ProxyHandle> 
     throw err
   }
 
-  const addr = proxy.server.address() as AddressInfo
-  const actualPort = addr.port
+  const addr = proxy.server.address() as AddressInfo | null
+  const actualPort = addr?.port ?? proxy.config?.port ?? DEFAULT_PORT
 
   await log("info", `Claude Max proxy running on port ${actualPort}`)
 

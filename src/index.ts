@@ -11,7 +11,7 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
   const proxy = await startProxy({ port, log })
 
   const baseURL = `http://127.0.0.1:${proxy.port}`
-  await log("info", `proxy ready at ${baseURL}`)
+  void log("info", `proxy ready at ${baseURL}`)
   
   registerCleanup(proxy)
 

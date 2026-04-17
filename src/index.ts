@@ -1,5 +1,6 @@
 import type { Plugin } from "@opencode-ai/plugin"
 
+import { applyAnthropicProxyConfig } from "./anthropic-proxy-config"
 import { loadPrompt } from "./prompts"
 import { createLogger } from "./logger"
 import { registerCleanup, startProxy } from "./proxy"
@@ -19,8 +20,7 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
 
   return {
     async config(input) {
-      const opts = ((input.provider ??= {}).anthropic ??= {}).options ??= {}
-      opts.baseURL = baseURL
+      applyAnthropicProxyConfig(input, baseURL)
     },
 
     async "chat.message"(incoming, output) {

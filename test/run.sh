@@ -58,7 +58,7 @@ ok "Build complete"
 WORK_DIR=$(mktemp -d)
 info "Test workspace: $WORK_DIR"
 
-# Copy opencode.json (the plugin's config hook handles provider setup automatically)
+# Copy opencode.json (Anthropic provider remains explicitly configured; the plugin only rewrites baseURL)
 cp "$SCRIPT_DIR/opencode.json" "$WORK_DIR/opencode.json"
 
 # Set up .opencode/plugins/ with symlink to built plugin

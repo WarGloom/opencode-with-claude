@@ -67,11 +67,7 @@ ln -sf "$PLUGIN_DIR/dist/index.js" "$WORK_DIR/.opencode/plugins/claude-proxy.js"
 
 # Add package.json for the plugin's runtime dependency
 cat > "$WORK_DIR/.opencode/package.json" << 'EOF'
-{
-  "dependencies": {
-    "opencode-claude-max-proxy": "latest"
-  }
-}
+{}
 EOF
 
 cleanup() {

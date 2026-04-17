@@ -15,7 +15,7 @@ const IS_WINDOWS = process.platform === "win32"
 
 export interface StartProxyOptions {
   port?: string | number
-  log: LogFn
+  log: LogFn | undefined
 }
 
 export interface ProxyHandle {
@@ -32,7 +32,7 @@ export async function startProxy(opts: StartProxyOptions): Promise<ProxyHandle> 
   console.error = (...args: unknown[]) => {
     const msg = args.map(String).join(" ")
     if (msg.startsWith("[PROXY]")) {
-      void log(classifyProxyLog(msg as string), msg)
+      void log?.(classifyProxyLog(msg as string), msg)
       return
     }
     origError.apply(console, args)
@@ -79,7 +79,7 @@ export async function startProxy(opts: StartProxyOptions): Promise<ProxyHandle> 
         "code" in err &&
         err.code === "EADDRINUSE"
       ) {
-        await log(
+        void log?.(
           "info",
           `Port ${p} in use, starting on a random port instead...`
         )
@@ -100,7 +100,7 @@ export async function startProxy(opts: StartProxyOptions): Promise<ProxyHandle> 
   const addr = proxy.server.address() as AddressInfo | null
   const actualPort = addr?.port ?? proxy.config?.port ?? DEFAULT_PORT
 
-  await log("info", `Claude Max proxy running on port ${actualPort}`)
+  void log?.( "info", `Claude Max proxy running on port ${actualPort}`)
 
   return {
     port: actualPort,
@@ -122,7 +122,7 @@ export interface HealthResult {
 
 export async function checkProxyHealth(
   port: string | number,
-  log: LogFn
+  log: LogFn | undefined
 ): Promise<HealthResult> {
   try {
     const res = await fetch(`http://127.0.0.1:${port}/health`, {
@@ -137,7 +137,7 @@ export async function checkProxyHealth(
         typeof body.error === "string"
           ? body.error
           : "Could not verify auth status"
-      await log(
+      void log?.(
         "warn",
         `[claude-max] ${detail}. Requests may still work — if they hang, try running 'claude login' in your terminal.`
       )
@@ -150,12 +150,12 @@ export async function checkProxyHealth(
         ? body.error
         : `Proxy health check returned status: ${body.status ?? res.status}`
 
-    await log("error", `[claude-max] ${detail}`)
+    void log?.( "error", `[claude-max] ${detail}`)
     return { ok: false, message: detail }
   } catch (err) {
     const msg =
       err instanceof Error ? err.message : String(err)
-    await log("error", `[claude-max] Health check failed: ${msg}`)
+    void log?.( "error", `[claude-max] Health check failed: ${msg}`)
     return { ok: false, message: `Health check failed: ${msg}` }
   }
 }

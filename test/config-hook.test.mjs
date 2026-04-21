@@ -16,7 +16,7 @@ test("bundle does not expose helper functions that legacy loader would treat as 
 test("bundle preserves anthropic-beta handling for Anthropic requests", () => {
   const built = readFileSync(new URL("../dist/index.js", import.meta.url), "utf-8")
 
-  assert.equal(built.includes('"anthropic-beta"'), false)
+  assert.equal(built.includes('"anthropic-beta"'), true)
   assert.equal(built.includes('"x-opencode-session"'), true)
   assert.equal(built.includes('"x-opencode-request"'), true)
 })

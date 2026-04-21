@@ -35,6 +35,7 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
 
     async "chat.headers"(incoming, output) {
       if (incoming.model.providerID !== "anthropic") return
+      delete output.headers["anthropic-beta"]
       output.headers["x-opencode-session"] = incoming.sessionID
       output.headers["x-opencode-request"] = incoming.message.id
     },

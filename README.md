@@ -123,7 +123,7 @@ npm run build
 
 **Do I need an Anthropic API key?**
 
-No. Claude Max is not authenticated with API keys here. Run `claude login` once; the proxy uses that session (Agent SDK via OAuth). OpenCode still expects an `apiKey` field, so the plugin supplies a placeholder — it is not used for real auth.
+No. Claude Max is not authenticated with API keys here. Run `claude login` once; the proxy uses that session (Agent SDK via OAuth). OpenCode still expects an `apiKey` field in the Anthropic provider config, so set a placeholder such as `"dummy"` in `opencode.json` — it is not used for real auth.
 
 **What if my Claude Max subscription lapses?**
 

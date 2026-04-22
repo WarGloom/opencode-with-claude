@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.5.6](https://github.com/ianjwhite99/opencode-with-claude/compare/v1.5.5...v1.5.6) (2026-04-22)
+
+
+### Bug Fixes
+
+* support configurable proxy host binding ([#122](https://github.com/ianjwhite99/opencode-with-claude/issues/122)) ([b59bcea](https://github.com/ianjwhite99/opencode-with-claude/commit/b59bceab574ba8a8a52ea35c7994f6da19341dca))
+
+## [1.5.5](https://github.com/ianjwhite99/opencode-with-claude/compare/v1.5.4...v1.5.5) (2026-04-21)
+
+
+### Bug Fixes
+
+* readme.md injection ([#119](https://github.com/ianjwhite99/opencode-with-claude/issues/119)) ([32a09de](https://github.com/ianjwhite99/opencode-with-claude/commit/32a09de411dc3fa211c515138ce17c5b8b09a523))
+
+## [1.5.4](https://github.com/ianjwhite99/opencode-with-claude/compare/v1.5.3...v1.5.4) (2026-04-21)
+
+
+### Bug Fixes
+
+* revert opencode prompt injection ([#117](https://github.com/ianjwhite99/opencode-with-claude/issues/117)) ([633f4b2](https://github.com/ianjwhite99/opencode-with-claude/commit/633f4b220497b3ab37edcb2a6036fb7d212839ac))
+
 ## [1.5.3](https://github.com/ianjwhite99/opencode-with-claude/compare/v1.5.2...v1.5.3) (2026-04-21)
 
 

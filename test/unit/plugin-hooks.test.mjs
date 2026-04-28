@@ -144,7 +144,8 @@ test("chat.message records the agent for anthropic requests", async () => {
   )
   assert.ok(Array.isArray(output.system))
   assert.ok(output.system.length >= 1)
-  assert.equal(output.system[0], expectedPlanPrompt)
+  assert.equal(output.system[0], "original")
+  assert.equal(output.system[1], expectedPlanPrompt)
 })
 
 test("chat.message ignores non-anthropic providers", async () => {
@@ -172,30 +173,26 @@ test("chat.message ignores non-anthropic providers", async () => {
 // experimental.chat.system.transform — drives the prompts module indirectly
 // ---------------------------------------------------------------------------
 
-test("system.transform replaces system[] for anthropic and includes AGENTS.md", async () => {
+test("system.transform preserves system[] for anthropic and includes AGENTS.md", async () => {
   await hooks["chat.message"](
     { model: { providerID: "anthropic" } },
     { message: { agent: "build" } },
   )
 
-  const output = { system: ["previous content that should be discarded"] }
+  const output = { system: ["previous content that should be preserved"] }
   await hooks["experimental.chat.system.transform"](
     { model: { providerID: "anthropic" } },
     output,
   )
 
-  // Discarded the prior system content entirely.
-  assert.ok(
-    !output.system.some((s) => s.includes("previous content")),
-    "prior system content should be spliced out",
-  )
+  assert.equal(output.system[0], "previous content that should be preserved")
   // Picked up the AGENTS.md we planted.
   assert.ok(
     output.system.some((s) => s.includes("Fake agents marker")),
     "expected AGENTS.md content in transformed system array",
   )
-  assert.equal(output.system[0], expectedBuildPrompt)
-  // At least [prompt, agents.md] — two non-empty entries.
+  assert.equal(output.system[1], expectedBuildPrompt)
+  // At least [original, prompt, agents.md], all non-empty entries.
   assert.ok(output.system.length >= 2)
   assert.ok(output.system.every((s) => typeof s === "string" && s.length > 0))
 })

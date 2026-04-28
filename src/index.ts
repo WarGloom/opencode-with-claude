@@ -40,10 +40,10 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
       currentAgent = output.message.agent
     },
 
-    // Replace the default system prompt with the selected agent prompt plus global AGENTS.md content
+    // Preserve OpenCode's agent system prompt and append the Claude bridge prompt plus global AGENTS.md content.
     async "experimental.chat.system.transform"(input, output) {
       if (input.model.providerID !== "anthropic") return
-      output.system.splice(0, output.system.length, ...loadSystemPrompt(currentAgent))
+      output.system.push(...loadSystemPrompt(currentAgent))
     },
 
     // Delete the anthropic-beta header and add session and request headers to the request for the proxy to identify the session and request

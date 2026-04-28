@@ -206,7 +206,7 @@
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.60.0", "", { "os": "win32", "cpu": "x64" }, "sha512-PrsWNQ8BuE00O3Xsx3ALh2Df8fAj9+cvvX9AIA6o4KpATR98c9mud4XtDWVvsEuyia5U4tVSTKygawyJkjm60w=="],
 
-    "@rynfar/meridian": ["@rynfar/meridian@file:../meridian", { "dependencies": { "@anthropic-ai/claude-agent-sdk": "^0.2.89", "libsql": "^0.5.29" }, "devDependencies": { "@hono/node-server": "^1.19.11", "@types/bun": "^1.3.11", "@types/node": "^22.0.0", "bun2nix": "^2.0.8", "glob": "^13.0.0", "hono": "^4.11.4", "typescript": "^5.8.2" }, "bin": { "meridian": "./dist/cli.js", "claude-max-proxy": "./dist/cli.js" } }],
+    "@rynfar/meridian": ["@rynfar/meridian@file:../meridian", { "dependencies": { "@anthropic-ai/claude-agent-sdk": "^0.2.117", "@anthropic-ai/claude-code": "^2.1.117", "libsql": "^0.5.29" }, "devDependencies": { "@hono/node-server": "^1.19.11", "@types/bun": "^1.3.11", "@types/node": "^22.0.0", "bun2nix": "^2.0.8", "glob": "^13.0.0", "hono": "^4.11.4", "typescript": "^5.8.2" }, "bin": { "meridian": "./dist/cli.js", "claude-max-proxy": "./dist/cli.js" } }],
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 

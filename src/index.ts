@@ -3,6 +3,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { applyAnthropicProxyConfig } from "./anthropic-proxy-config"
 import { createLogger } from "./logger"
 import { loadMeridianConfig, summarizeMeridianConfig } from "./meridian-config"
+import { loadPrompt } from "./prompts"
 import { getProxyBaseURL, registerCleanup, startProxy } from "./proxy"
 
 export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
@@ -25,9 +26,21 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
 
   registerCleanup(proxy)
 
+  let currentAgent: string | undefined
+
   return {
     async config(input) {
       applyAnthropicProxyConfig(input, baseURL)
+    },
+
+    async "chat.message"(incoming, output) {
+      if (incoming.model?.providerID !== "anthropic") return
+      currentAgent = output.message.agent
+    },
+
+    async "experimental.chat.system.transform"(input, output) {
+      if (input.model.providerID !== "anthropic") return
+      output.system.splice(0, output.system.length, loadPrompt(currentAgent ?? "build"))
     },
 
     async "chat.headers"(incoming, output) {

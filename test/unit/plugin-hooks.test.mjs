@@ -112,7 +112,7 @@ test("config hook is a no-op when no anthropic provider exists", async () => {
 // chat.headers — strip anthropic-beta, add session/request headers
 // ---------------------------------------------------------------------------
 
-test("chat.headers strips anthropic-beta and adds session + request IDs", async () => {
+test("chat.headers preserves anthropic-beta and adds session + request IDs", async () => {
   const output = { headers: { "anthropic-beta": "some-flag", keep: "me" } }
   await hooks["chat.headers"](
     {
@@ -122,13 +122,13 @@ test("chat.headers strips anthropic-beta and adds session + request IDs", async 
     },
     output,
   )
-  assert.equal(output.headers["anthropic-beta"], undefined)
+  assert.equal(output.headers["anthropic-beta"], "some-flag")
   assert.equal(output.headers["x-opencode-session"], "sess-123")
   assert.equal(output.headers["x-opencode-request"], "msg-abc")
   assert.equal(output.headers.keep, "me", "other headers should be preserved")
 })
 
-test("chat.headers is safe when anthropic-beta header was never present", async () => {
+test("chat.headers adds session + request IDs when no other headers present", async () => {
   const output = { headers: {} }
   await hooks["chat.headers"](
     {

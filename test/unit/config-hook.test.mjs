@@ -13,10 +13,9 @@ test("bundle does not expose helper functions that legacy loader would treat as 
   assert.equal("applyAnthropicProxyConfig" in pluginModule, false)
 })
 
-test("bundle preserves anthropic-beta handling for Anthropic requests", () => {
+test("bundle includes session and request header wiring for Anthropic requests", () => {
   const built = readFileSync(new URL("../../dist/index.js", import.meta.url), "utf-8")
 
-  assert.equal(built.includes('"anthropic-beta"'), true)
   assert.equal(built.includes('"x-opencode-session"'), true)
   assert.equal(built.includes('"x-opencode-request"'), true)
 })

@@ -142,6 +142,29 @@ test("chat.headers adds session + request IDs when no other headers present", as
   assert.equal(output.headers["x-opencode-request"], "m")
 })
 
+test("chat.headers forwards configured OpenCode agent mode", async () => {
+  await hooks.config({
+    provider: { anthropic: { options: {} } },
+    agent: {
+      explore: { mode: "subagent" },
+      build: { mode: "primary" },
+    },
+  })
+
+  const output = { headers: {} }
+  await hooks["chat.headers"](
+    {
+      sessionID: "s",
+      agent: "explore",
+      model: { providerID: "anthropic" },
+      message: { id: "m" },
+    },
+    output,
+  )
+
+  assert.equal(output.headers["x-opencode-agent-mode"], "subagent")
+})
+
 test("chat.headers is a no-op for non-anthropic providers", async () => {
   const output = { headers: { "anthropic-beta": "still-here" } }
   await hooks["chat.headers"](
@@ -171,4 +194,56 @@ test("plugin logs 'proxy ready' during startup", () => {
     ),
     "expected a 'proxy ready at ...' log entry from startup",
   )
+})
+
+test("system transform preserves existing OpenCode system prompts", async () => {
+  const output = { system: ["OMO Sisyphus prompt", "Project instructions"] }
+
+  await hooks["experimental.chat.system.transform"](
+    { model: { providerID: "anthropic" } },
+    output,
+  )
+
+  assert.equal(output.system.length, 3)
+  assert.match(output.system[0], /You are Anthropic's Claude Code/)
+  assert.equal(output.system[1], "OMO Sisyphus prompt")
+  assert.equal(output.system[2], "Project instructions")
+})
+
+test("system transform uses the agent captured for its session", async () => {
+  await hooks["chat.message"](
+    {
+      sessionID: "plan-session",
+      agent: "plan",
+      model: { providerID: "anthropic" },
+    },
+    { message: {}, parts: [] },
+  )
+  await hooks["chat.message"](
+    {
+      sessionID: "build-session",
+      agent: "build",
+      model: { providerID: "anthropic" },
+    },
+    { message: {}, parts: [] },
+  )
+
+  const output = { system: [] }
+  await hooks["experimental.chat.system.transform"](
+    { sessionID: "plan-session", model: { providerID: "anthropic" } },
+    output,
+  )
+
+  assert.match(output.system[0], /Plan mode is ENABLED/)
+})
+
+test("system transform does not touch non-anthropic providers", async () => {
+  const output = { system: ["OMO Sisyphus prompt"] }
+
+  await hooks["experimental.chat.system.transform"](
+    { model: { providerID: "openai" } },
+    output,
+  )
+
+  assert.deepEqual(output.system, ["OMO Sisyphus prompt"])
 })

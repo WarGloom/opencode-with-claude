@@ -3,7 +3,6 @@ import test, { before, after } from "node:test"
 import {
   mkdtempSync,
   mkdirSync,
-  writeFileSync,
   rmSync,
 } from "node:fs"
 import { join } from "node:path"
@@ -35,13 +34,7 @@ before(async () => {
   // the developer's real files.
   fakeHomeDir = mkdtempSync(join(tmpdir(), "owc-hooks-"))
   mkdirSync(join(fakeHomeDir, ".config", "meridian"), { recursive: true })
-  const opencodeDir = join(fakeHomeDir, ".config", "opencode")
-  mkdirSync(opencodeDir, { recursive: true })
-  // Plant an AGENTS.md we can look for in the transform-hook assertions.
-  writeFileSync(
-    join(opencodeDir, "AGENTS.md"),
-    "# Fake agents marker\nproject-specific instructions here.",
-  )
+  mkdirSync(join(fakeHomeDir, ".config", "opencode"), { recursive: true })
 
   previousEnv = {
     HOME: process.env.HOME,
@@ -109,7 +102,15 @@ test("config hook is a no-op when no anthropic provider exists", async () => {
 })
 
 // ---------------------------------------------------------------------------
-// chat.headers — strip anthropic-beta, add session/request headers
+// system prompt handling
+// ---------------------------------------------------------------------------
+
+test("plugin leaves OpenCode system prompts untouched", () => {
+  assert.equal(hooks["experimental.chat.system.transform"], undefined)
+})
+
+// ---------------------------------------------------------------------------
+// chat.headers - preserve anthropic-beta, add OpenCode/Meridian headers
 // ---------------------------------------------------------------------------
 
 test("chat.headers preserves anthropic-beta and adds session + request IDs", async () => {
@@ -125,10 +126,27 @@ test("chat.headers preserves anthropic-beta and adds session + request IDs", asy
   assert.equal(output.headers["anthropic-beta"], "some-flag")
   assert.equal(output.headers["x-opencode-session"], "sess-123")
   assert.equal(output.headers["x-opencode-request"], "msg-abc")
+  assert.equal(output.headers["x-opencode-agent-mode"], "primary")
+  assert.equal(output.headers["x-opencode-agent-name"], "unknown")
   assert.equal(output.headers.keep, "me", "other headers should be preserved")
 })
 
-test("chat.headers adds session + request IDs when no other headers present", async () => {
+test("chat.headers forwards agent mode and sanitized agent name", async () => {
+  const output = { headers: {} }
+  await hooks["chat.headers"](
+    {
+      sessionID: "sess-123",
+      agent: { name: "explore\u200b", mode: "subagent" },
+      model: { providerID: "anthropic" },
+      message: { id: "msg-abc" },
+    },
+    output,
+  )
+  assert.equal(output.headers["x-opencode-agent-mode"], "subagent")
+  assert.equal(output.headers["x-opencode-agent-name"], "explore")
+})
+
+test("chat.headers is safe when anthropic-beta header was never present", async () => {
   const output = { headers: {} }
   await hooks["chat.headers"](
     {
@@ -140,29 +158,8 @@ test("chat.headers adds session + request IDs when no other headers present", as
   )
   assert.equal(output.headers["x-opencode-session"], "s")
   assert.equal(output.headers["x-opencode-request"], "m")
-})
-
-test("chat.headers forwards configured OpenCode agent mode", async () => {
-  await hooks.config({
-    provider: { anthropic: { options: {} } },
-    agent: {
-      explore: { mode: "subagent" },
-      build: { mode: "primary" },
-    },
-  })
-
-  const output = { headers: {} }
-  await hooks["chat.headers"](
-    {
-      sessionID: "s",
-      agent: "explore",
-      model: { providerID: "anthropic" },
-      message: { id: "m" },
-    },
-    output,
-  )
-
-  assert.equal(output.headers["x-opencode-agent-mode"], "subagent")
+  assert.equal(output.headers["x-opencode-agent-mode"], "primary")
+  assert.equal(output.headers["x-opencode-agent-name"], "unknown")
 })
 
 test("chat.headers is a no-op for non-anthropic providers", async () => {
@@ -194,56 +191,4 @@ test("plugin logs 'proxy ready' during startup", () => {
     ),
     "expected a 'proxy ready at ...' log entry from startup",
   )
-})
-
-test("system transform preserves existing OpenCode system prompts", async () => {
-  const output = { system: ["OMO Sisyphus prompt", "Project instructions"] }
-
-  await hooks["experimental.chat.system.transform"](
-    { model: { providerID: "anthropic" } },
-    output,
-  )
-
-  assert.equal(output.system.length, 3)
-  assert.match(output.system[0], /You are Anthropic's Claude Code/)
-  assert.equal(output.system[1], "OMO Sisyphus prompt")
-  assert.equal(output.system[2], "Project instructions")
-})
-
-test("system transform uses the agent captured for its session", async () => {
-  await hooks["chat.message"](
-    {
-      sessionID: "plan-session",
-      agent: "plan",
-      model: { providerID: "anthropic" },
-    },
-    { message: {}, parts: [] },
-  )
-  await hooks["chat.message"](
-    {
-      sessionID: "build-session",
-      agent: "build",
-      model: { providerID: "anthropic" },
-    },
-    { message: {}, parts: [] },
-  )
-
-  const output = { system: [] }
-  await hooks["experimental.chat.system.transform"](
-    { sessionID: "plan-session", model: { providerID: "anthropic" } },
-    output,
-  )
-
-  assert.match(output.system[0], /Plan mode is ENABLED/)
-})
-
-test("system transform does not touch non-anthropic providers", async () => {
-  const output = { system: ["OMO Sisyphus prompt"] }
-
-  await hooks["experimental.chat.system.transform"](
-    { model: { providerID: "openai" } },
-    output,
-  )
-
-  assert.deepEqual(output.system, ["OMO Sisyphus prompt"])
 })

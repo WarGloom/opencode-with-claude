@@ -3,7 +3,6 @@ import test, { before, after } from "node:test"
 import {
   mkdtempSync,
   mkdirSync,
-  readFileSync,
   rmSync,
 } from "node:fs"
 import { join } from "node:path"
@@ -31,24 +30,18 @@ function makeClient() {
 }
 
 before(async () => {
-  // Isolate ~/.config/meridian and ~/.config/opencode so tests don't read
-  // the developer's real files.
+  // Isolate ~/.config/meridian so tests don't read the developer's real files.
   fakeHomeDir = mkdtempSync(join(tmpdir(), "owc-hooks-"))
   mkdirSync(join(fakeHomeDir, ".config", "meridian"), { recursive: true })
-  mkdirSync(join(fakeHomeDir, ".config", "opencode"), { recursive: true })
 
   previousEnv = {
     HOME: process.env.HOME,
     USERPROFILE: process.env.USERPROFILE,
-    OPENCODE_CONFIG_DIR: process.env.OPENCODE_CONFIG_DIR,
-    XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
     CLAUDE_PROXY_PORT: process.env.CLAUDE_PROXY_PORT,
   }
 
   process.env.HOME = fakeHomeDir
   process.env.USERPROFILE = fakeHomeDir
-  delete process.env.OPENCODE_CONFIG_DIR
-  delete process.env.XDG_CONFIG_HOME
 
   // Use a random OS-assigned port so multiple runs don't collide.
   process.env.CLAUDE_PROXY_PORT = "0"
@@ -106,16 +99,42 @@ test("config hook is a no-op when no anthropic provider exists", async () => {
 // system prompt handling
 // ---------------------------------------------------------------------------
 
-test("plugin leaves OpenCode system prompts untouched", () => {
-  assert.equal(hooks["experimental.chat.system.transform"], undefined)
+test("system.transform strips the OpenCode prompt and keeps assembled context", async () => {
+  const opencodePrompt = [
+    "You are OpenCode, You and the user share the same workspace.",
+    "",
+    "OpenCode-specific tool and behavior instructions that should be stripped.",
+  ].join("\n")
+  const env = "<env>\nWorking directory: /tmp/project\n</env>"
+  const agents = "# Fake agents marker\nproject-specific instructions here."
+  const output = { system: [opencodePrompt, env, agents] }
+
+  await hooks["experimental.chat.system.transform"](
+    { model: { providerID: "anthropic" } },
+    output,
+  )
+
+  assert.equal(output.system.includes(opencodePrompt), false)
+  assert.equal(
+    output.system.some((entry) => entry.includes("OpenCode-specific")),
+    false,
+  )
+  assert.deepEqual(output.system, [env, agents])
 })
 
-test("plugin defaults the OpenCode client prompt off for Meridian", () => {
-  const raw = readFileSync(
-    join(fakeHomeDir, ".config", "meridian", "sdk-features.json"),
-    "utf8",
+test("system.transform ignores non-anthropic providers", async () => {
+  const system = [
+    "You are OpenCode, You and the user share the same workspace.",
+    "<env>\nWorking directory: /tmp/project\n</env>",
+  ]
+  const output = { system: [...system] }
+
+  await hooks["experimental.chat.system.transform"](
+    { model: { providerID: "openai" } },
+    output,
   )
-  assert.equal(JSON.parse(raw).opencode?.clientSystemPrompt, false)
+
+  assert.deepEqual(output.system, system)
 })
 
 // ---------------------------------------------------------------------------

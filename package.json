@@ -1,12 +1,13 @@
 {
   "name": "opencode-with-claude",
   "description": "OpenCode plugin to use your Claude Max subscription via Meridian proxy",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "dependencies": {
-    "@rynfar/meridian": "file:../meridian"
+    "@rynfar/meridian": "file:../meridian",
+    "@rynfar/meridian-plugin-opencode-scrub": "^0.2.0"
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.14.22",
@@ -16,7 +17,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "npm run test:unit",
+    "test": "./test/run.sh",
     "test:unit": "npm run build && node --experimental-strip-types --test test/unit/*.test.mjs",
     "test:e2e": "./test/run.sh",
     "test:clean": "./test/run.sh --clean",

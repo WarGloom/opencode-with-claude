@@ -212,6 +212,7 @@ npm run build
 
 ```bash
 ./test/run.sh              # Build and launch OpenCode with the plugin
+npm run test:e2e           # Build and smoke-test OpenCode startup with the plugin
 ./test/run.sh --clean      # Remove build artifacts
 ```
 

@@ -8,6 +8,19 @@ import {
 } from "./meridian-config"
 import { getProxyBaseURL, registerCleanup, startProxy } from "./proxy"
 
+const ADVISOR_BETA_HEADER = "advisor-tool-2026-03-01"
+
+function filterAdvisorBetaHeader(value: string | undefined): string | undefined {
+  if (!value) return undefined
+
+  const forwarded = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry === ADVISOR_BETA_HEADER)
+
+  return forwarded.length === 0 ? undefined : forwarded.join(", ")
+}
+
 export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
   const log = createLogger(client)
   const agentModes = new Map<string, string>()
@@ -52,10 +65,15 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
       }
     },
 
-    // Strip Anthropic beta flags and add headers Meridian uses for OpenCode sessions.
     async "chat.headers"(incoming, output) {
       if (incoming.model.providerID !== "anthropic") return
-      delete output.headers["anthropic-beta"]
+
+      const advisorBetaHeader = filterAdvisorBetaHeader(output.headers["anthropic-beta"])
+      if (advisorBetaHeader) {
+        output.headers["anthropic-beta"] = advisorBetaHeader
+      } else {
+        delete output.headers["anthropic-beta"]
+      }
 
       // OpenCode types this as a string, but at runtime newer versions pass the
       // full agent object. Use .mode directly so subagents don't look primary.

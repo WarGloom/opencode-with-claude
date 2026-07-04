@@ -204,12 +204,26 @@ test("plugin does not pin MERIDIAN_WORKDIR, leaving per-session cwd resolution t
   assert.equal(process.env.CLAUDE_PROXY_WORKDIR, undefined)
 })
 
+test("Meridian dependency pins the opus alias to Claude Opus 4.8", async () => {
+  const { resolveSdkModelDefaults } = await loadMeridianModelMapper()
+
+  assert.equal(
+    resolveSdkModelDefaults({}).ANTHROPIC_DEFAULT_OPUS_MODEL,
+    "claude-opus-4-8",
+  )
+})
+
 // ---------------------------------------------------------------------------
-// chat.headers — strip anthropic-beta, add OpenCode/Meridian headers
+// chat.headers - preserve advisor beta, add OpenCode/Meridian headers
 // ---------------------------------------------------------------------------
 
-test("chat.headers strips anthropic-beta and adds session + request IDs", async () => {
-  const output = { headers: { "anthropic-beta": "some-flag", keep: "me" } }
+test("chat.headers preserves only advisor anthropic-beta and adds session + request IDs", async () => {
+  const output = {
+    headers: {
+      "anthropic-beta": "context-1m-2025-08-07, advisor-tool-2026-03-01, extended-cache-ttl-2025-04-11",
+      keep: "me",
+    },
+  }
   await hooks["chat.headers"](
     {
       sessionID: "sess-123",
@@ -218,11 +232,25 @@ test("chat.headers strips anthropic-beta and adds session + request IDs", async 
     },
     output,
   )
-  assert.equal(output.headers["anthropic-beta"], undefined)
+  assert.equal(output.headers["anthropic-beta"], "advisor-tool-2026-03-01")
   assert.equal(output.headers["x-opencode-session"], "sess-123")
   assert.equal(output.headers["x-opencode-request"], "msg-abc")
   assert.equal(output.headers["x-opencode-agent-mode"], "primary")
   assert.equal(output.headers.keep, "me", "other headers should be preserved")
+})
+
+test("chat.headers strips non-advisor anthropic-beta values", async () => {
+  const output = { headers: { "anthropic-beta": "context-1m-2025-08-07, extended-cache-ttl-2025-04-11" } }
+  await hooks["chat.headers"](
+    {
+      sessionID: "sess-123",
+      model: { providerID: "anthropic" },
+      message: { id: "msg-abc" },
+    },
+    output,
+  )
+
+  assert.equal("anthropic-beta" in output.headers, false)
 })
 
 test("chat.headers strips non-ASCII before mode lookup", async () => {
@@ -297,7 +325,7 @@ test("chat.headers keeps exact subagent mode without an agent name", async () =>
   assert.equal(output.headers["x-opencode-agent-name"], "unknown")
 })
 
-test("chat.headers subagent mode selects Meridian non-extended tier", async () => {
+test("chat.headers subagent mode selects Meridian Opus 4.8 non-extended tier", async () => {
   const { mapModelToClaudeModel } = await loadMeridianModelMapper()
 
   const subagentOutput = { headers: {} }
@@ -324,7 +352,7 @@ test("chat.headers subagent mode selects Meridian non-extended tier", async () =
 
   assert.equal(
     mapModelToClaudeModel(
-      "claude-opus-4-7",
+      "claude-opus-4-8",
       undefined,
       subagentOutput.headers["x-opencode-agent-mode"],
     ),
@@ -332,7 +360,7 @@ test("chat.headers subagent mode selects Meridian non-extended tier", async () =
   )
   assert.equal(
     mapModelToClaudeModel(
-      "claude-opus-4-7",
+      "claude-opus-4-8",
       undefined,
       primaryOutput.headers["x-opencode-agent-mode"],
     ),

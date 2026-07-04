@@ -9,6 +9,7 @@
 #
 # Usage:
 #   ./test/run.sh          # Build and launch OpenCode with plugin
+#   ./test/run.sh --smoke  # Build and smoke-test OpenCode startup with plugin
 #   ./test/run.sh --clean  # Remove build artifacts
 # =============================================================================
 
@@ -32,6 +33,12 @@ if [[ "${1:-}" == "--clean" ]]; then
     rm -rf "$PLUGIN_DIR/dist"
     ok "Cleaned. dist/ deleted."
     exit 0
+fi
+
+SMOKE=false
+if [[ "${1:-}" == "--smoke" ]]; then
+    SMOKE=true
+    shift
 fi
 
 # --- Preflight ---
@@ -81,4 +88,27 @@ info "Plugin: $PLUGIN_DIR/dist/index.js -> .opencode/plugins/claude-proxy.js"
 info "The plugin will start its own proxy on an OS-assigned port."
 info ""
 
-(cd "$WORK_DIR" && opencode"$@")
+if [[ "$SMOKE" == "true" ]]; then
+    SMOKE_SECONDS="${OWC_E2E_SMOKE_SECONDS:-10}"
+    info "Smoke-testing startup for ${SMOKE_SECONDS}s..."
+
+    (
+        cd "$WORK_DIR"
+        opencode "$@"
+    ) &
+    OPENCODE_PID=$!
+
+    sleep "$SMOKE_SECONDS"
+
+    if kill -0 "$OPENCODE_PID" 2>/dev/null; then
+        kill "$OPENCODE_PID" 2>/dev/null || true
+        wait "$OPENCODE_PID" 2>/dev/null || true
+        ok "OpenCode stayed up with the plugin loaded"
+        exit 0
+    fi
+
+    wait "$OPENCODE_PID"
+    fail "OpenCode exited before the smoke window completed"
+fi
+
+(cd "$WORK_DIR" && opencode "$@")

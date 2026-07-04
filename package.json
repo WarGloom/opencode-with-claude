@@ -17,8 +17,9 @@
   },
   "scripts": {
     "build": "tsup && tsc",
-    "test": "./test/run.sh",
+    "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "npm run build && node --experimental-strip-types --test test/unit/*.test.mjs",
+    "test:e2e": "./test/run.sh --smoke",
     "test:clean": "./test/run.sh --clean",
     "prepublishOnly": "npm run build"
   },

@@ -27,6 +27,18 @@ import { normalizeSystemUpdates } from "./v2-messages"
 const PLUGIN_ID = "opencode-with-claude"
 const ANTHROPIC = "anthropic"
 const MAX_HUMAN_MESSAGES = 4096
+const ADVISOR_BETA_HEADER = "advisor-tool-2026-03-01"
+
+function filterAdvisorBetaHeader(value: string | undefined): string | undefined {
+  if (!value) return undefined
+
+  const forwarded = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry === ADVISOR_BETA_HEADER)
+
+  return forwarded.length === 0 ? undefined : forwarded.join(", ")
+}
 
 // ---------------------------------------------------------------------------
 // Shared runtime: the proxy lifecycle is identical on both OpenCode generations
@@ -178,6 +190,12 @@ const server: Plugin = async ({ client }) => {
     async "chat.headers"(incoming, output) {
       if (incoming.model.providerID !== ANTHROPIC) return
 
+      // applyMeridianHeaders drops anthropic-beta wholesale; the advisor flag
+      // is the one value Meridian still needs, so carry it across.
+      const advisorBetaHeader = filterAdvisorBetaHeader(
+        output.headers["anthropic-beta"],
+      )
+
       // OpenCode types this as a string, but at runtime some versions pass the
       // full agent object. Use .mode directly so subagents don't look primary.
       const agent = incoming.agent as unknown as
@@ -197,6 +215,9 @@ const server: Plugin = async ({ client }) => {
         detached: DETACHED_AGENTS.has(agentName.toLowerCase()),
       }
       applyMeridianHeaders(output.headers, identity)
+      if (advisorBetaHeader) {
+        output.headers["anthropic-beta"] = advisorBetaHeader
+      }
 
       output.headers["x-opencode-request"] = incoming.message.id
       output.headers["x-opencode-request-kind"] = humanMessages.has(

@@ -205,11 +205,16 @@ test("plugin does not pin MERIDIAN_WORKDIR, leaving per-session cwd resolution t
 })
 
 // ---------------------------------------------------------------------------
-// chat.headers — strip anthropic-beta, add OpenCode/Meridian headers
+// chat.headers - preserve advisor beta, add OpenCode/Meridian headers
 // ---------------------------------------------------------------------------
 
-test("chat.headers strips anthropic-beta and adds session + request IDs", async () => {
-  const output = { headers: { "anthropic-beta": "some-flag", keep: "me" } }
+test("chat.headers preserves only advisor anthropic-beta and adds session + request IDs", async () => {
+  const output = {
+    headers: {
+      "anthropic-beta": "context-1m-2025-08-07, advisor-tool-2026-03-01, extended-cache-ttl-2025-04-11",
+      keep: "me",
+    },
+  }
   await hooks["chat.headers"](
     {
       sessionID: "sess-123",
@@ -218,11 +223,25 @@ test("chat.headers strips anthropic-beta and adds session + request IDs", async 
     },
     output,
   )
-  assert.equal(output.headers["anthropic-beta"], undefined)
+  assert.equal(output.headers["anthropic-beta"], "advisor-tool-2026-03-01")
   assert.equal(output.headers["x-opencode-session"], "sess-123")
   assert.equal(output.headers["x-opencode-request"], "msg-abc")
   assert.equal(output.headers["x-opencode-agent-mode"], "primary")
   assert.equal(output.headers.keep, "me", "other headers should be preserved")
+})
+
+test("chat.headers strips non-advisor anthropic-beta values", async () => {
+  const output = { headers: { "anthropic-beta": "context-1m-2025-08-07, extended-cache-ttl-2025-04-11" } }
+  await hooks["chat.headers"](
+    {
+      sessionID: "sess-123",
+      model: { providerID: "anthropic" },
+      message: { id: "msg-abc" },
+    },
+    output,
+  )
+
+  assert.equal("anthropic-beta" in output.headers, false)
 })
 
 test("chat.headers strips non-ASCII before mode lookup", async () => {

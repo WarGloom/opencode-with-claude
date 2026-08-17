@@ -13,9 +13,14 @@ import {
   startProxy,
 } from "./proxy"
 
+const MAX_HUMAN_MESSAGES = 4096
 export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
   const log = createLogger(client)
   const agentModes = new Map<string, string>()
+  const humanMessages = new Map<string, true>()
+
+  const messageKey = (sessionID: string, messageID: string) =>
+    `${sessionID}\u0000${messageID}`
 
   const meridianConfig = loadMeridianConfig(log)
   const summary = summarizeMeridianConfig(meridianConfig)
@@ -49,7 +54,18 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
 
       const anthropic = input.provider?.anthropic
       if (!anthropic) return
-      ;(anthropic.options ??= {}).baseURL = baseURL
+      if (!anthropic.options) anthropic.options = {}
+      anthropic.options.baseURL = baseURL
+    },
+
+    async "chat.message"(input, output) {
+      const key = messageKey(input.sessionID, output.message.id)
+      humanMessages.delete(key)
+      humanMessages.set(key, true)
+      if (humanMessages.size > MAX_HUMAN_MESSAGES) {
+        const oldest = humanMessages.keys().next().value
+        if (oldest !== undefined) humanMessages.delete(oldest)
+      }
     },
 
     // Keep user context, but scrub OpenCode fingerprints before Meridian passthrough.
@@ -84,6 +100,11 @@ export const ClaudeMaxPlugin: Plugin = async ({ client }) => {
 
       output.headers["x-opencode-session"] = incoming.sessionID
       output.headers["x-opencode-request"] = incoming.message.id
+      output.headers["x-opencode-request-kind"] = humanMessages.has(
+        messageKey(incoming.sessionID, incoming.message.id),
+      )
+        ? "human"
+        : "synthetic"
       output.headers["x-opencode-agent-mode"] = agentMode
       output.headers["x-opencode-agent-name"] = agentName
     },

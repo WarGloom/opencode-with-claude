@@ -208,6 +208,101 @@ test("plugin does not pin MERIDIAN_WORKDIR, leaving per-session cwd resolution t
 // chat.headers — strip anthropic-beta, add OpenCode/Meridian headers
 // ---------------------------------------------------------------------------
 
+test("chat.message marks the observed message ID as human for chat.headers", async () => {
+  const messageId = "msg-human"
+  await hooks["chat.message"](
+    { sessionID: "sess-123" },
+    { message: { id: messageId } },
+  )
+
+  const output = { headers: {} }
+  await hooks["chat.headers"](
+    {
+      sessionID: "sess-123",
+      model: { providerID: "anthropic" },
+      message: { id: messageId },
+    },
+    output,
+  )
+
+  assert.equal(output.headers["x-opencode-request-kind"], "human")
+})
+
+test("chat.headers keeps an observed message ID human across repeated calls in the same session", async () => {
+  const messageId = "msg-repeated-human"
+  const sessionID = "sess-123"
+  await hooks["chat.message"](
+    { sessionID },
+    { message: { id: messageId } },
+  )
+
+  for (const _ of [0, 1]) {
+    const output = { headers: {} }
+    await hooks["chat.headers"](
+      {
+        sessionID,
+        model: { providerID: "anthropic" },
+        message: { id: messageId },
+      },
+      output,
+    )
+    assert.equal(output.headers["x-opencode-request-kind"], "human")
+  }
+})
+
+test("chat.headers marks the same message ID in another session as synthetic", async () => {
+  const messageId = "msg-session-scoped"
+  await hooks["chat.message"](
+    { sessionID: "sess-human" },
+    { message: { id: messageId } },
+  )
+
+  const output = { headers: {} }
+  await hooks["chat.headers"](
+    {
+      sessionID: "sess-other",
+      model: { providerID: "anthropic" },
+      message: { id: messageId },
+    },
+    output,
+  )
+
+  assert.equal(output.headers["x-opencode-request-kind"], "synthetic")
+})
+
+test("chat.headers marks an unobserved message ID as synthetic", async () => {
+  const output = { headers: {} }
+  await hooks["chat.headers"](
+    {
+      sessionID: "sess-123",
+      model: { providerID: "anthropic" },
+      message: { id: "msg-unobserved-synthetic" },
+    },
+    output,
+  )
+
+  assert.equal(output.headers["x-opencode-request-kind"], "synthetic")
+})
+
+test("turn-origin metadata does not change non-anthropic chat.headers behavior", async () => {
+  await hooks["chat.message"](
+    { sessionID: "sess-123" },
+    { message: { id: "msg-non-anthropic" } },
+  )
+  const output = { headers: { "anthropic-beta": "still-here" } }
+
+  await hooks["chat.headers"](
+    {
+      sessionID: "sess-123",
+      model: { providerID: "openai" },
+      message: { id: "msg-non-anthropic" },
+    },
+    output,
+  )
+
+  assert.deepEqual(output.headers, { "anthropic-beta": "still-here" })
+})
+
 test("chat.headers strips anthropic-beta and adds session + request IDs", async () => {
   const output = { headers: { "anthropic-beta": "some-flag", keep: "me" } }
   await hooks["chat.headers"](

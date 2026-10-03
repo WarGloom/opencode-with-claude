@@ -1,7 +1,26 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { classifyProxyLog } from "../../src/logger.ts"
+import { classifyProxyLog, createConsoleLogger } from "../../src/logger.ts"
+
+test("console logger drops debug and info but retains warn and error", async () => {
+  const lines = []
+  const original = console.error
+  console.error = (...args) => lines.push(args.map(String).join(" "))
+  try {
+    const log = createConsoleLogger()
+    await log("debug", "request received")
+    await log("info", "proxy ready at http://127.0.0.1:3456")
+    await log("warn", "rate limit reached")
+    await log("error", "authentication failed")
+    assert.deepEqual(lines, [
+      "[opencode-with-claude] warn: rate limit reached",
+      "[opencode-with-claude] error: authentication failed",
+    ])
+  } finally {
+    console.error = original
+  }
+})
 
 test("classifies authentication failures as error", () => {
   assert.equal(classifyProxyLog("[PROXY] authentication failed"), "error")

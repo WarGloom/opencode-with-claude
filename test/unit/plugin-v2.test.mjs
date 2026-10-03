@@ -120,7 +120,8 @@ after(async () => {
 
 test("concurrent and repeated setup share one proxy and one set of cleanup listeners", async () => {
   assert.equal(await proxyURL(ctx), await proxyURL(secondContext))
-  assert.equal(stderrLines.filter((line) => line.includes("proxy ready at http://")).length, 1)
+  // Startup info stays off stderr; the shared URL and listener counts prove one runtime.
+  assert.equal(stderrLines.filter((line) => line.includes("proxy ready at http://")).length, 0)
   assert.deepEqual(listenerCounts(), cleanupListenerCounts.map((n, i) =>
     n + (i === 2 && process.platform === "win32" ? 0 : 1),
   ))
@@ -211,20 +212,15 @@ test("http.request leaves non-anthropic providers alone", async () => {
   assert.equal(input.request.headers.get("anthropic-beta"), "some-beta")
 })
 
-test("setup logs the proxy URL to stderr (v2 has no plugin log API)", () => {
-  const ready = stderrLines.find((line) => line.includes("proxy ready at http://"))
-  assert.ok(ready, `expected a 'proxy ready' line, got:\n${stderrLines.join("\n")}`)
-  assert.match(ready, /^\[opencode-with-claude\] info: /)
+test("setup keeps routine startup info off stderr", () => {
+  assert.doesNotMatch(stderrLines.join("\n"), /\[opencode-with-claude\] info:/)
 })
 
 test("model.request points anthropic at the proxy's /v1 and adds session headers", async () => {
-  const ready = stderrLines.find((line) => line.includes("proxy ready at http://"))
-  const proxyURL = ready.slice(ready.indexOf("http://"))
-
   const input = await ctx.emit("model.request", modelRequest({
     headers: { "anthropic-beta": "some-flag", keep: "me" },
   }))
-  assert.equal(input.baseURL, `${proxyURL}/v1`)
+  assert.match(input.baseURL, /^http:\/\/127\.0\.0\.1:[1-9]\d*\/v1$/)
   assert.equal(input.headers["anthropic-beta"], undefined)
   assert.equal(input.headers.keep, "me")
   assert.equal(input.headers["x-opencode-session"], "sess-v2")
@@ -234,8 +230,10 @@ test("model.request points anthropic at the proxy's /v1 and adds session headers
 })
 
 test("model.request replaces the entire anthropic placeholder URL regardless of its path (#234)", async () => {
-  const ready = stderrLines.find((line) => line.includes("proxy ready at http://"))
-  const proxyURL = ready.slice(ready.indexOf("http://"))
+  // Startup info stays off stderr here (see the "proxy ready" test above), so
+  // derive the proxy origin from a default request instead of the log line.
+  const proxyOrigin = await proxyURL(ctx)
+  assert.match(proxyOrigin, /^http:\/\/127\.0\.0\.1:[1-9]\d*$/)
 
   for (const baseURL of [
     "http://127.0.0.1:3456",
@@ -243,7 +241,7 @@ test("model.request replaces the entire anthropic placeholder URL regardless of 
     "http://placeholder.invalid/custom/v1",
   ]) {
     const input = await ctx.emit("model.request", modelRequest({ baseURL }))
-    assert.equal(input.baseURL, `${proxyURL}/v1`, `placeholder: ${baseURL}`)
+    assert.equal(input.baseURL, `${proxyOrigin}/v1`, `placeholder: ${baseURL}`)
   }
 })
 
@@ -414,8 +412,8 @@ test("V2 request hooks normalize chronological system updates after tool results
 })
 
 test("cleanup disposes every registration and stops the proxy", async () => {
-  const ready = stderrLines.find((line) => line.includes("proxy ready at http://"))
-  const proxyURL = ready.slice(ready.indexOf("http://"))
+  const request = await ctx.emit("model.request", modelRequest())
+  const proxyURL = new URL(request.baseURL).origin
   const before = await fetch(`${proxyURL}/health`, { signal: AbortSignal.timeout(5_000) })
   assert.equal(before.ok, true, "proxy should answer /health while the plugin is loaded")
 

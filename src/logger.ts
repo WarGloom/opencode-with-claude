@@ -21,14 +21,12 @@ export function createLogger(
 }
 
 /**
- * Create a logger for hosts without a log API (OpenCode v2 gives plugins no
- * `client.app.log`). Lines go to stderr, which OpenCode v2 captures into its
- * own log stream; debug lines are dropped so the proxy's per-request chatter
- * does not flood it.
+ * Create a logger for plugin contexts without `client.app.log`. Only warnings
+ * and errors go to stderr; hosts may display stderr directly in the TUI.
  */
 export function createConsoleLogger(): LogFn {
   return async (level, message) => {
-    if (level === "debug") return
+    if (level === "debug" || level === "info") return
     console.error(`[opencode-with-claude] ${level}: ${message}`)
   }
 }

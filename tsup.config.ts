@@ -2,7 +2,11 @@ import { defineConfig } from "tsup"
 import { readFileSync } from "fs"
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  // tui.ts is a separate OpenCode TUI module (package export "./tui"); v1
+  // rejects a single module exporting both server() and tui().
+  entry: ["src/index.ts", "src/tui.ts"],
+  // Provided by the OpenCode host at runtime, never bundled.
+  external: ["@opentui/solid", "solid-js"],
   format: ["esm"],
   // TypeScript 7 (native/Go) no longer ships the JS Compiler API that
   // rollup-plugin-dts (used by tsup --dts) depends on. Emit .d.ts via tsc.

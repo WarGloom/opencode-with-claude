@@ -136,13 +136,19 @@ test("concurrent and repeated setup share one proxy and one set of cleanup liste
   }
 })
 
+// The tests run Meridian under a fake HOME with no Claude login, which Meridian
+// reports as "unhealthy" (503). Liveness only needs the running proxy to answer.
+async function assertProxyAnswers(response, message) {
+  const body = await response.json()
+  assert.ok(response.ok || body.status === "unhealthy", message ?? `unexpected /health answer: ${response.status} ${body.status}`)
+}
+
 test("failed hook registration releases only its own shared runtime reference", async () => {
   const failing = makeContext()
   failing.session.hook = async () => { throw new Error("registration failed") }
   await assert.rejects(plugin.setup(failing), /registration failed/)
   assert.deepEqual(failing.disposed, ["agent.transform"])
-  const response = await fetch(`${await proxyURL(ctx)}/health`)
-  assert.equal(response.ok, true)
+  await assertProxyAnswers(await fetch(`${await proxyURL(ctx)}/health`))
 })
 
 test("setup registers anthropic-scoped session hooks and an agent transform", () => {
@@ -415,13 +421,13 @@ test("cleanup disposes every registration and stops the proxy", async () => {
   const request = await ctx.emit("model.request", modelRequest())
   const proxyURL = new URL(request.baseURL).origin
   const before = await fetch(`${proxyURL}/health`, { signal: AbortSignal.timeout(5_000) })
-  assert.equal(before.ok, true, "proxy should answer /health while the plugin is loaded")
+  await assertProxyAnswers(before, "proxy should answer /health while the plugin is loaded")
 
   await cleanup()
   await cleanup()
 
   const stillRunning = await fetch(`${proxyURL}/health`, { signal: AbortSignal.timeout(5_000) })
-  assert.equal(stillRunning.ok, true, "another plugin instance still owns the proxy")
+  await assertProxyAnswers(stillRunning, "another plugin instance still owns the proxy")
   await secondCleanup()
 
   assert.deepEqual(
@@ -452,8 +458,7 @@ test("setup can restart after final disposal, including while close is in flight
   await closing
   const disposeNext = await nextSetup
   try {
-    const response = await fetch(`${await proxyURL(next)}/health`)
-    assert.equal(response.ok, true)
+    await assertProxyAnswers(await fetch(`${await proxyURL(next)}/health`))
   } finally {
     await disposeNext()
   }
@@ -478,8 +483,7 @@ test("a failed startup is not cached and the next setup can retry", async () => 
   const recovered = makeContext()
   const dispose = await plugin.setup(recovered)
   try {
-    const response = await fetch(`${await proxyURL(recovered)}/health`)
-    assert.equal(response.ok, true)
+    await assertProxyAnswers(await fetch(`${await proxyURL(recovered)}/health`))
   } finally {
     await dispose()
   }

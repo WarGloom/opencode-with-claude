@@ -5,7 +5,7 @@
     "": {
       "name": "opencode-with-claude",
       "dependencies": {
-        "@rynfar/meridian": "1.83.1",
+        "@rynfar/meridian": "1.84.0",
         "@rynfar/meridian-plugin-opencode-scrub": "0.2.0",
       },
       "devDependencies": {
@@ -370,7 +370,7 @@
 
     "@rollup/rollup-win32-x64-msvc": ["@rollup/rollup-win32-x64-msvc@4.60.0", "", { "os": "win32", "cpu": "x64" }, "sha512-PrsWNQ8BuE00O3Xsx3ALh2Df8fAj9+cvvX9AIA6o4KpATR98c9mud4XtDWVvsEuyia5U4tVSTKygawyJkjm60w=="],
 
-    "@rynfar/meridian": ["@rynfar/meridian@1.83.1", "", { "dependencies": { "@anthropic-ai/claude-agent-sdk": "^0.2.141", "@anthropic-ai/claude-code": "^2.1.293", "ajv": "^8.20.0", "ajv-formats": "^3.0.1", "cross-spawn": "7.0.6", "jsonc-parser": "^3.3.1", "libsql": "^0.5.29", "zod": "4.4.3" }, "bin": { "meridian": "dist/cli.js", "claude-max-proxy": "dist/cli.js" } }, "sha512-bfazniBfnUryjtY4QqTInzpsw6WmPi2rSgafXdgrInfwH23vzRS3kL4QzwzJ3tztljnEESbBixwBmafDLK8EMw=="],
+    "@rynfar/meridian": ["@rynfar/meridian@1.84.0", "", { "dependencies": { "@anthropic-ai/claude-agent-sdk": "^0.2.141", "@anthropic-ai/claude-code": "^2.1.293", "ajv": "^8.20.0", "ajv-formats": "^3.0.1", "cross-spawn": "7.0.6", "jsonc-parser": "^3.3.1", "libsql": "^0.5.29", "zod": "4.4.3" }, "bin": { "meridian": "dist/cli.js", "claude-max-proxy": "dist/cli.js" } }, "sha512-8/6dSvF2YxUAaG8tWpowdWhQWSZ+Sls1N0+LplwZohaK4u0KoXdQ5cjm7Kdnx0sC/xIZkjUZckUdvJAe8Uixiw=="],
 
     "@rynfar/meridian-plugin-opencode-scrub": ["@rynfar/meridian-plugin-opencode-scrub@0.2.0", "", { "peerDependencies": { "@rynfar/meridian": "*" }, "optionalPeers": ["@rynfar/meridian"] }, "sha512-RaXNkIwPB2NmicdNvDmYLKbLz5KsnAlNt3XfuejstPpMZBbogxhi6JSsU3k6nHGj/yoYmbpLYMGD4Bv4v30Tvg=="],
 

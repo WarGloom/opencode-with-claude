@@ -30,6 +30,7 @@ const tui: TuiPlugin = async (api, options) => {
     import("solid-js"),
   ])
   const maskEmail = readMaskEmailOption(options)
+  const prefix = readPrefixOption(options)
   const [snapshot, setSnapshot] = createSignal<StatusSnapshot>(INITIAL_SNAPSHOT)
   const [clock, setClock] = createSignal(Date.now())
 
@@ -70,7 +71,8 @@ const tui: TuiPlugin = async (api, options) => {
       node,
       {
         get content() {
-          return line()?.text ?? ""
+          const text = line()?.text
+          return text ? `${prefix}${text}` : ""
         },
         get fg() {
           return toneColor(api, line()?.tone ?? "unknown")
@@ -104,6 +106,13 @@ function toneColor(api: TuiPluginApi, tone: StatusTone) {
 function readMaskEmailOption(options: unknown): boolean {
   if (typeof options !== "object" || options === null) return true
   return (options as { maskEmail?: unknown }).maskEmail !== false
+}
+
+/** `["…/dist/tui.js", { "prefix": "│ " }]` in tui.json separates this segment from a preceding plugin's. */
+function readPrefixOption(options: unknown): string {
+  if (typeof options !== "object" || options === null) return ""
+  const prefix = (options as { prefix?: unknown }).prefix
+  return typeof prefix === "string" ? prefix : ""
 }
 
 const plugin: TuiPluginModule = {

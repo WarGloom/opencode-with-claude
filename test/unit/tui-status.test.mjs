@@ -8,6 +8,7 @@ import {
   formatStatusLine,
   isAnthropicSession,
   maskEmail,
+  formatResetIn,
   parseQuotaResponse,
   resolveMeridianBaseURL,
 } from "../../src/tui-status.ts"
@@ -62,6 +63,25 @@ test("the five_hour bucket is read and shown before the weekly figure", () => {
   const line = formatStatusLine(ready({ quota: reading }), { maskEmail: true, now: NOW })
   assert.equal(line.text, "work · ni***@adversa.ai · 5h 10% · 7d 62%")
   assert.equal(line.tone, "warning")
+})
+
+test("each window shows how long until it resets", () => {
+  // given: Meridian reports both resetsAt values
+  const body = quotaBody("work", 0.38)
+  body.buckets[0].resetsAt = NOW + 3 * 3_600_000
+  body.buckets[1].resetsAt = NOW + 2 * 86_400_000 + 3 * 3_600_000
+  // when
+  const line = formatStatusLine(ready({ quota: parseQuotaResponse(body) }), { maskEmail: true, now: NOW })
+  // then
+  assert.equal(line.text, "work · ni***@adversa.ai · 5h 10% resets in 3h · 7d 62% resets in 2d")
+})
+
+test("time left uses one unit and hides resets already past", () => {
+  assert.equal(formatResetIn(NOW + 40 * 60_000, NOW), "40m")
+  assert.equal(formatResetIn(NOW + 5 * 3_600_000 + 10 * 60_000, NOW), "5h")
+  assert.equal(formatResetIn(NOW + 60 * 3_600_000, NOW), "3d")
+  assert.equal(formatResetIn(NOW - 1, NOW), undefined)
+  assert.equal(formatResetIn(null, NOW), undefined)
 })
 
 test("a rejected 5-hour window turns the line red even with weekly headroom", () => {

@@ -25,6 +25,10 @@ export interface QuotaReading {
   rejected: boolean
   /** Whole percent of the 5-hour allowance left, rounded down; null when unknown. */
   sessionRemaining: number | null
+  /** When the 5-hour window resets (epoch ms); null when unknown. */
+  sessionResetsAt: number | null
+  /** When the 7-day window resets (epoch ms); null when unknown. */
+  weeklyResetsAt: number | null
 }
 
 export interface StatusSnapshot {
@@ -62,6 +66,8 @@ export function parseQuotaResponse(value: unknown): QuotaReading | undefined {
     readAt: utilization === undefined ? null : (finiteNumber(weekly?.observedAt) ?? null),
     rejected: weekly?.status === "rejected" || session?.status === "rejected",
     sessionRemaining: sessionUtilization === undefined ? null : remainingPercent(sessionUtilization),
+    sessionResetsAt: (session ? finiteNumber(session.resetsAt) : undefined) ?? null,
+    weeklyResetsAt: (weekly ? finiteNumber(weekly.resetsAt) : undefined) ?? null,
   }
 }
 
@@ -165,12 +171,28 @@ export function formatStatusLine(
 
   const stale = quota.readAt === null || options.now - quota.readAt > STALE_AFTER_MS
   const session = quota.sessionRemaining
-  const sessionPart = session != null ? `5h ${session}%${SEPARATOR}` : ""
-  const text = `${label}${SEPARATOR}${sessionPart}7d ${quota.weeklyRemaining}%${stale ? " stale" : ""}`
+  const resetPart = (resetsAt: number | null) => {
+    const left = formatResetIn(resetsAt, options.now)
+    return left ? ` resets in ${left}` : ""
+  }
+  const sessionPart = session != null ? `5h ${session}%${resetPart(quota.sessionResetsAt)}${SEPARATOR}` : ""
+  const text = `${label}${SEPARATOR}${sessionPart}7d ${quota.weeklyRemaining}%${resetPart(quota.weeklyResetsAt)}${stale ? " stale" : ""}`
   const lowest = Math.min(quota.weeklyRemaining, session ?? 100)
   if (quota.rejected || lowest <= 0) return { text, tone: "danger" }
   if (stale || lowest < WARNING_REMAINING_PERCENT) return { text, tone: "warning" }
   return { text, tone: "normal" }
+}
+
+/** Time left until `resetsAt` in one unit: `40m` under an hour, `5h` under a day, else `2d`. */
+export function formatResetIn(resetsAt: number | null | undefined, now: number): string | undefined {
+  if (resetsAt == null || !Number.isFinite(resetsAt)) return undefined
+  const left = resetsAt - now
+  if (left <= 0) return undefined
+  const minutes = Math.max(1, Math.ceil(left / 60_000))
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.max(1, Math.round(left / 3_600_000))
+  if (hours < 24) return `${hours}h`
+  return `${Math.max(1, Math.round(left / 86_400_000))}d`
 }
 
 function remainingPercent(utilization: number): number {

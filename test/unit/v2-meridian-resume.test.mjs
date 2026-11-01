@@ -5,7 +5,8 @@ import { dirname, join } from "node:path"
 import test from "node:test"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import vm from "node:vm"
-import { protocol } from "@opencode/ai/protocols/anthropic-messages"
+import { Media } from "@opencode/ai"
+import { AnthropicMessages } from "@opencode/ai/protocols"
 import { normalizeSystemUpdates } from "../../src/v2-messages.ts"
 
 // Only protocol.body.from runs: no HTTP transport, Meridian import, SDK, or credentials.
@@ -58,7 +59,7 @@ const fixture = () => [
   { role: "tool", content: [{ type: "tool-result", id: toolID, name: "read", result: { type: "text", value: "fixture" } }] },
   { role: "system", content: [text(update)] },
 ]
-const lower = async (messages, id = "claude-sonnet-5-5") => clean(await Effect.runPromise(protocol.body.from({
+const lower = async (messages, id = "claude-sonnet-5-5") => clean(await Effect.runPromise(AnthropicMessages.protocol.body.from({
   model: {
     id,
     provider: "anthropic",
@@ -186,7 +187,7 @@ test("structured tool-result media and later user media survive matching alongsi
   ] }
   messages.push({ role: "user", content: [
     text("Compare this attachment."),
-    { type: "media", mediaType: "image/png", data: image },
+    { type: "media", media: Media.fromDataUrl(image) },
   ] })
   normalizeSystemUpdates(messages)
   const body = await lower(messages)

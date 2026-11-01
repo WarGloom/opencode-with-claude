@@ -29,7 +29,7 @@ async function proxyURL(context) {
 }
 
 function makeContext() {
-  const hooks = { session: new Map(), agentTransforms: [] }
+  const hooks = { session: new Map(), agentTransforms: [], providerTransforms: [] }
   const disposed = []
   const registration = (label) => ({
     dispose: async () => {
@@ -44,6 +44,12 @@ function makeContext() {
       transform: async (callback) => {
         hooks.agentTransforms.push(callback)
         return registration("agent.transform")
+      },
+    },
+    provider: {
+      transform: async (callback) => {
+        hooks.providerTransforms.push(callback)
+        return registration("provider.transform")
       },
     },
     session: {
@@ -147,7 +153,7 @@ test("failed hook registration releases only its own shared runtime reference", 
   const failing = makeContext()
   failing.session.hook = async () => { throw new Error("registration failed") }
   await assert.rejects(plugin.setup(failing), /registration failed/)
-  assert.deepEqual(failing.disposed, ["agent.transform"])
+  assert.deepEqual(failing.disposed, ["provider.transform", "agent.transform"])
   await assertProxyAnswers(await fetch(`${await proxyURL(ctx)}/health`))
 })
 
@@ -233,6 +239,21 @@ test("model.request points anthropic at the proxy's /v1 and adds session headers
   assert.equal(input.headers["x-opencode-agent-name"], "build")
   assert.equal(input.headers["x-opencode-agent-mode"], "primary")
   assert.equal(input.headers["x-meridian-source"], undefined)
+})
+
+test("provider transform publishes the request URL without changing catalog or auth metadata", async () => {
+  const original = {
+    id: "anthropic", activation: "auto", integrationID: "anthropic", package: "anthropic",
+    settings: { baseURL: "https://api.anthropic.com/v1", timeout: 42 },
+  }
+  const expected = (await ctx.emit("model.request", modelRequest())).baseURL
+  const provider = structuredClone(original)
+  for (const callback of ctx.hooks.providerTransforms) {
+    const editor = { update: (id, update) => { assert.equal(id, provider.id); update(provider) } }
+    callback(editor)
+    callback(editor)
+  }
+  assert.deepEqual(provider, { ...original, settings: { ...original.settings, baseURL: expected } })
 })
 
 test("model.request replaces the entire anthropic placeholder URL regardless of its path (#234)", async () => {
@@ -434,6 +455,7 @@ test("cleanup disposes every registration and stops the proxy", async () => {
     [...ctx.disposed].sort(),
     [
       "agent.transform",
+      "provider.transform",
       "session.compaction",
       "session.context",
       "session.generate",

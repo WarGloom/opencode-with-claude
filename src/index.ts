@@ -288,6 +288,15 @@ const setup: OpenCodeV2.Plugin["setup"] = async (ctx) => {
   }
 
   try {
+    // Publish the same route to TUI consumers without changing provider activation or models.
+    registrations.push(
+      await ctx.provider.transform((editor) => {
+        editor.update(ANTHROPIC, (provider) => {
+          provider.settings = { ...provider.settings, baseURL: anthropicBaseURL }
+        })
+      }),
+    )
+
     // Built-in agents are part of the assembled agent set, so the transform
     // sees every mode the v1 config hook could see, plus the built-ins.
     registrations.push(

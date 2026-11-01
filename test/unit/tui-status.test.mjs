@@ -395,13 +395,13 @@ test("a quota reply still in flight when the profile switches never restores the
 
 // --- loader contracts -------------------------------------------------------
 
-test("TUI bundle is a separate v1 TUI module: default { id, tui } and nothing else", () => {
+test("TUI bundle exposes both host entry points without a server entry", () => {
   assert.deepEqual(Object.keys(tuiModule), ["default"])
   const plugin = tuiModule.default
   assert.equal(plugin.id, "opencode-with-claude.status")
   assert.equal(typeof plugin.tui, "function")
   assert.equal("server" in plugin, false, "v1 rejects a module that has both server() and tui()")
-  assert.equal("setup" in plugin, false, "a v2 loader must not start a second proxy from the TUI module")
+  assert.equal(typeof plugin.setup, "function")
 })
 
 test("server bundle still carries only the v1 server() and v2 setup() entry points", () => {

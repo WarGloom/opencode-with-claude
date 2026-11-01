@@ -1,4 +1,5 @@
 import type { TuiPlugin, TuiPluginApi, TuiPluginModule } from "@opencode-ai/plugin/tui"
+import type { Plugin } from "@opencode/plugin/tui"
 
 import { createStatusController } from "./tui-controller.ts"
 import {
@@ -9,6 +10,7 @@ import {
   type StatusSnapshot,
   type StatusTone,
 } from "./tui-status.ts"
+import { isV2AnthropicSession, resolveV2MeridianBaseURL } from "./tui-v2-status.ts"
 
 /**
  * TUI entry point, published as the package's `./tui` export and listed in
@@ -94,6 +96,69 @@ const tui: TuiPlugin = async (api, options) => {
   })
 }
 
+const setup: Plugin.Definition["setup"] = async (ctx) => {
+  const [{ createElement, spread }, { createSignal }] = await Promise.all([
+    import("@opentui/solid"),
+    import("solid-js"),
+  ])
+  const maskEmail = readMaskEmailOption(ctx.options)
+  const prefix = readPrefixOption(ctx.options)
+  const [snapshot, setSnapshot] = createSignal<StatusSnapshot>(INITIAL_SNAPSHOT)
+  const [clock, setClock] = createSignal(Date.now())
+  const controller = createStatusController({
+    fetch: globalThis.fetch,
+    baseURL: () => resolveV2MeridianBaseURL(ctx),
+    onChange: setSnapshot,
+  })
+  controller.start()
+  const clockTimer = setInterval(() => setClock(Date.now()), CLOCK_TICK_MS)
+  const nudgeFor = (sessionID: string) => {
+    if (isV2AnthropicSession(ctx, sessionID)) controller.nudge()
+  }
+  const offIdle = ctx.data.on("session.idle", (event) => nudgeFor(event.data.sessionID))
+  const offError = ctx.data.on("session.execution.failed", (event) => nudgeFor(event.data.sessionID))
+  const unregister = ctx.ui.slot({
+    append: "prompt.footer.status",
+    render: (input) => {
+      const line = () =>
+        resolveV2MeridianBaseURL(ctx) && isV2AnthropicSession(ctx, input.sessionID)
+          ? formatStatusLine(snapshot(), { maskEmail, now: clock() })
+          : undefined
+      const node = createElement("text")
+      spread(
+        node,
+        {
+          get content() {
+            const text = line()?.text
+            return text ? `${prefix}${text}` : ""
+          },
+          get fg() {
+            switch (line()?.tone ?? "unknown") {
+              case "danger": return ctx.theme.text.feedback.error.base
+              case "warning": return ctx.theme.text.feedback.warning.base
+              case "normal": return ctx.theme.text.feedback.success.base
+              default: return ctx.theme.text.muted
+            }
+          },
+          alignSelf: "flex-start",
+          selectable: false,
+          truncate: true,
+          wrapMode: "none",
+        },
+        false,
+      )
+      return node
+    },
+  })
+  return () => {
+    offIdle()
+    offError()
+    clearInterval(clockTimer)
+    controller.dispose()
+    unregister()
+  }
+}
+
 function toneColor(api: TuiPluginApi, tone: StatusTone) {
   const theme = api.theme.current
   if (tone === "danger") return theme.error
@@ -115,9 +180,10 @@ function readPrefixOption(options: unknown): string {
   return typeof prefix === "string" ? prefix : ""
 }
 
-const plugin: TuiPluginModule = {
+const plugin: TuiPluginModule & Plugin.Definition = {
   id: "opencode-with-claude.status",
   tui,
+  setup,
 }
 
 export default plugin

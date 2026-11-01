@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { createRequire } from "node:module"
 import test from "node:test"
 import { pathToFileURL } from "node:url"
-import { protocol } from "@opencode/ai/protocols/anthropic-messages"
+import { AnthropicMessages } from "@opencode/ai/protocols"
 import { normalizeSystemUpdates } from "../../src/v2-messages.ts"
 
 // Use the protocol's Effect build, not a different transitive root version.
@@ -15,7 +15,7 @@ const fixture = () => [
   { role: "tool", content: [{ type: "tool-result", id: "call-1", name: "read", result: { type: "text", value: "fixture" } }] },
   { role: "system", content: [text("Continue <safely> & finish.")] },
 ]
-const lower = (messages, id = "claude-sonnet-5-5") => Effect.runPromise(protocol.body.from({
+const lower = (messages, id = "claude-sonnet-5-5") => Effect.runPromise(AnthropicMessages.protocol.body.from({
   model: {
     id,
     provider: "anthropic",

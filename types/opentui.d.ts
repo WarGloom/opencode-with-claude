@@ -11,4 +11,5 @@ declare module "@opentui/solid" {
 
 declare module "solid-js" {
   export function createSignal<T>(value: T): [() => T, (value: T) => T]
+  export function createComputed(fn: () => void): void
 }

@@ -97,7 +97,7 @@ const tui: TuiPlugin = async (api, options) => {
 }
 
 const setup: Plugin.Definition["setup"] = async (ctx) => {
-  const [{ createElement, spread }, { createSignal }] = await Promise.all([
+  const [{ createElement, spread }, { createComputed, createSignal }] = await Promise.all([
     import("@opentui/solid"),
     import("solid-js"),
   ])
@@ -117,9 +117,19 @@ const setup: Plugin.Definition["setup"] = async (ctx) => {
   }
   const offIdle = ctx.data.on("session.idle", (event) => nudgeFor(event.data.sessionID))
   const offError = ctx.data.on("session.execution.failed", (event) => nudgeFor(event.data.sessionID))
+  // The provider catalog arrives after setup, so the first poll runs without a Meridian URL and reads
+  // as unavailable until the next quota poll. Poll again as soon as the URL is known or changes
+  // (a plugin reload starts Meridian on a new port).
+  let polledURL: string | undefined
   const unregister = ctx.ui.slot({
     append: "prompt.footer.status",
     render: (input) => {
+      createComputed(() => {
+        const url = resolveV2MeridianBaseURL(ctx)
+        if (!url || url === polledURL) return
+        polledURL = url
+        controller.nudge()
+      })
       const line = () =>
         resolveV2MeridianBaseURL(ctx) && isV2AnthropicSession(ctx, input.sessionID)
           ? formatStatusLine(snapshot(), { maskEmail, now: clock() })

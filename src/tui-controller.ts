@@ -44,6 +44,7 @@ export function createStatusController(options: StatusControllerOptions): Status
   let email: { profile: string | null; value: string | undefined; at: number } | undefined
   let running: Promise<void> | undefined
   let rerun = false
+  let pendingServed: string | undefined
   let nudgeTimer: ReturnType<typeof setTimeout> | undefined
   let disposed = false
   // Bumped on every profile switch; a reply begun before the bump is obsolete.
@@ -78,10 +79,7 @@ export function createStatusController(options: StatusControllerOptions): Status
     return value
   }
 
-  const refreshOnce = async () => {
-    const started = generation
-    const served = priorityRouting
-      ? await get("/telemetry/requests?limit=100").then((body) => {
+  const readServedProfile = () => get("/telemetry/requests?limit=100").then((body) => {
           if (!Array.isArray(body)) return undefined
           const entries: unknown[] = body
           return entries
@@ -94,7 +92,12 @@ export function createStatusController(options: StatusControllerOptions): Status
               "timestamp" in entry && typeof entry.timestamp === "number" && Number.isFinite(entry.timestamp))
             .sort((a, b) => b.timestamp - a.timestamp)[0]?.profileId
         }, () => undefined)
-      : undefined
+
+  const refreshOnce = async () => {
+    const started = generation
+    const supplied = pendingServed
+    pendingServed = undefined
+    const served = priorityRouting ? supplied ?? await readServedProfile() : undefined
     if (started !== generation) return
     const quotaPath = served ? `/v1/usage/quota?profile=${encodeURIComponent(served)}` : "/v1/usage/quota"
     const quota = await get(quotaPath).then(parseQuotaResponse, () => undefined)
@@ -141,7 +144,17 @@ export function createStatusController(options: StatusControllerOptions): Status
     priorityRouting = priority
     const previous = healthProfile
     healthProfile = active
-    if (previous === undefined || (previous === active && !routingChanged)) return
+    if (previous === undefined) return
+    if (previous === active && !routingChanged) {
+      if (!priority) return
+      const started = generation
+      const served = await readServedProfile()
+      if (started !== generation || !priorityRouting || !served || served === snapshot.profile) return
+      generation += 1
+      pendingServed = served
+      await refresh()
+      return
+    }
     // Never render the outgoing account's quota under the incoming label.
     generation += 1
     if (!priority) publish({ profile: active, quota: undefined, email: undefined })

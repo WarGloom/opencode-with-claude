@@ -92,6 +92,17 @@ test("a rejected 5-hour window turns the line red even with weekly headroom", ()
   assert.equal(formatStatusLine(ready({ quota: reading }), { maskEmail: true, now: NOW }).tone, "danger")
 })
 
+test("a rejected window without utilization remains visible when weekly quota is unknown", () => {
+  const body = { profile: "work", buckets: [{ type: "five_hour", status: "rejected", utilization: null, resetsAt: NOW + 3_600_000 }] }
+  const reading = parseQuotaResponse(body)
+  assert.equal(reading.sessionRemaining, 0)
+  assert.deepEqual(formatStatusLine(ready({ quota: reading }), { maskEmail: true, now: NOW }), {
+    text: "work · ni***@adversa.ai · 5h 0% resets in 1h · 7d ?",
+    tone: "danger",
+  })
+  assert.equal(parseQuotaResponse({ buckets: [{ type: "seven_day", status: "rejected", utilization: null }] }).weeklyRemaining, 0)
+})
+
 test("a reply without a weekly reading stays unknown instead of guessing", () => {
   const reading = parseQuotaResponse(quotaBody("work", undefined))
   assert.equal(reading.weeklyRemaining, null)
@@ -272,6 +283,32 @@ test("priority routing shows the newest successful OpenCode account and its quot
     await controller.refresh()
     assert.equal(formatStatusLine(controller.snapshot(), { maskEmail: true, now: NOW }).text,
       "home · ho***@example.com · 5h 10% · 7d 10%")
+  } finally {
+    controller.dispose()
+    await meridian.close()
+  }
+})
+
+test("a priority profile poll refreshes after telemetry changes without an active-profile switch", async () => {
+  const meridian = await fakeMeridian()
+  meridian.state.routing = "priority"
+  meridian.state.telemetry = [{ timestamp: 1, adapter: "opencode", status: 200, error: null, profileId: "work" }]
+  const controller = createStatusController({ fetch, baseURL: () => meridian.baseURL, now: () => NOW, onChange: () => {} })
+  try {
+    await controller.checkProfile()
+    await controller.refresh()
+    meridian.state.telemetry.push({ timestamp: 2, adapter: "opencode", status: 200, error: null, profileId: "home" })
+    meridian.state.requests.length = 0
+    await controller.checkProfile()
+    assert.equal(controller.snapshot().profile, "home")
+    assert.equal(controller.snapshot().quota.weeklyRemaining, 10)
+    assert.equal(meridian.state.requests.filter((request) => request.url.startsWith("/telemetry/")).length, 1)
+    meridian.state.telemetry = null
+    meridian.state.requests.length = 0
+    const before = controller.snapshot()
+    await controller.checkProfile()
+    assert.deepEqual(controller.snapshot(), before)
+    assert.equal(meridian.state.requests.filter((request) => request.url.startsWith("/v1/usage/quota")).length, 0)
   } finally {
     controller.dispose()
     await meridian.close()

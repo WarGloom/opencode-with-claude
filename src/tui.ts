@@ -113,7 +113,7 @@ const setup: Plugin.Definition["setup"] = async (ctx) => {
   controller.start()
   const clockTimer = setInterval(() => setClock(Date.now()), CLOCK_TICK_MS)
   const nudgeFor = (sessionID: string) => {
-    if (isV2AnthropicSession(ctx, sessionID)) controller.nudge()
+    if (isV2AnthropicSession(ctx, ctx.data.session.root(sessionID))) controller.nudge()
   }
   const offIdle = ctx.data.on("session.idle", (event) => nudgeFor(event.data.sessionID))
   const offError = ctx.data.on("session.execution.failed", (event) => nudgeFor(event.data.sessionID))

@@ -13,13 +13,18 @@ export function resolveV2MeridianBaseURL(ctx: Plugin.Context): string | undefine
 
 /** V2 messages name the provider in model; V1 messages put it on the assistant. */
 export function isV2AnthropicSession(ctx: Plugin.Context, sessionID: string | undefined): boolean {
-  const messages = sessionID ? ctx.data.session.message.list(sessionID) : []
-  const selected = ctx.ui.model.current()
-  return isAnthropicSession(
-    messages.filter((message) => message.type === "assistant").map((message) => ({
-      role: "assistant",
-      providerID: message.model.providerID,
-    })),
-    selected ? `${selected.providerID}/${selected.modelID}` : undefined,
-  )
+  if (!sessionID) {
+    const selected = ctx.ui.model.current()
+    return isAnthropicSession([], selected ? `${selected.providerID}/${selected.modelID}` : undefined)
+  }
+  return [sessionID, ...ctx.data.session.family(sessionID)].some((id) => {
+    const model = ctx.data.session.get(id)?.model
+    return isAnthropicSession(
+      ctx.data.session.message.list(id).filter((message) => message.type === "assistant").map((message) => ({
+        role: "assistant",
+        providerID: message.model.providerID,
+      })),
+      model?.providerID,
+    )
+  })
 }

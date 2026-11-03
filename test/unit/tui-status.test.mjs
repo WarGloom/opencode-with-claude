@@ -225,22 +225,29 @@ test("status requests never follow a redirect and never carry an API key", async
 // --- controller against a fake Meridian over real HTTP -------------------
 
 async function fakeMeridian() {
-  const state = { active: "work", utilization: 0.38, fail: false, requests: [] }
+  const state = { active: "work", utilization: 0.38, fail: false, requests: [], routing: "manual", telemetry: [] }
   const server = createServer((req, res) => {
     state.requests.push({ url: req.url, apiKey: req.headers["x-api-key"] })
     if (state.fail) {
       res.writeHead(503).end()
       return
     }
+    if (req.url === "/telemetry/requests?limit=100" && state.telemetry === null) {
+      res.writeHead(503).end()
+      return
+    }
+    const url = new URL(req.url, "http://localhost")
+    const profile = url.searchParams.get("profile") ?? state.active
     const bodies = {
-      "/profiles/health": { activeProfile: state.active, asOf: NOW },
+      "/profiles/health": { activeProfile: state.active, routing: state.routing, asOf: NOW },
       "/profiles/list": {
         activeProfile: state.active,
         profiles: [{ id: "work", email: EMAIL }, { id: "home", email: "home.user@example.com" }],
       },
-      "/v1/usage/quota": quotaBody(state.active, state.utilization),
+      "/v1/usage/quota": quotaBody(profile, profile === "home" ? 0.9 : state.utilization),
+      "/telemetry/requests": state.telemetry,
     }
-    const body = bodies[req.url]
+    const body = bodies[url.pathname]
     res.writeHead(body ? 200 : 404, { "content-type": "application/json" })
     res.end(JSON.stringify(body ?? {}))
   })
@@ -248,6 +255,47 @@ async function fakeMeridian() {
   const baseURL = `http://127.0.0.1:${server.address().port}`
   return { state, baseURL, close: () => new Promise((resolve) => server.close(resolve)) }
 }
+
+test("priority routing shows the newest successful OpenCode account and its quota", async () => {
+  const meridian = await fakeMeridian()
+  meridian.state.routing = "priority"
+  meridian.state.telemetry = [
+    { timestamp: 4, adapter: "other", status: 200, error: null, profileId: "work" },
+    { timestamp: 3.5, adapter: "opencode", status: 200, error: "failed", profileId: "work" },
+    { timestamp: 3, adapter: "opencode", status: 500, error: "failed", profileId: "work" },
+    { timestamp: 1, adapter: "opencode", status: 200, error: null, profileId: "work" },
+    { timestamp: 2, adapter: "opencode", status: 200, error: null, profileId: "home" },
+  ]
+  const controller = createStatusController({ fetch, baseURL: () => meridian.baseURL, now: () => NOW, onChange: () => {} })
+  try {
+    await controller.checkProfile()
+    await controller.refresh()
+    assert.equal(formatStatusLine(controller.snapshot(), { maskEmail: true, now: NOW }).text,
+      "home · ho***@example.com · 5h 10% · 7d 10%")
+  } finally {
+    controller.dispose()
+    await meridian.close()
+  }
+})
+
+for (const telemetry of [null, []]) {
+  test(`priority routing falls back to the active account when telemetry is ${telemetry === null ? "unavailable" : "empty"}`, async () => {
+    const meridian = await fakeMeridian()
+    meridian.state.routing = "priority"
+    meridian.state.telemetry = telemetry
+    const controller = createStatusController({ fetch, baseURL: () => meridian.baseURL, now: () => NOW, onChange: () => {} })
+    try {
+      await controller.checkProfile()
+      await controller.refresh()
+      assert.equal(formatStatusLine(controller.snapshot(), { maskEmail: true, now: NOW }).text,
+        "work · ni***@adversa.ai · 5h 10% · 7d 62%")
+    } finally {
+      controller.dispose()
+      await meridian.close()
+    }
+  })
+}
+
 
 test("controller follows an active-profile switch without showing the old quota", async () => {
   const meridian = await fakeMeridian()

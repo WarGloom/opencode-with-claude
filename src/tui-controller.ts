@@ -40,6 +40,7 @@ export function createStatusController(options: StatusControllerOptions): Status
   const timers: ReturnType<typeof setInterval>[] = []
   let snapshot: StatusSnapshot = INITIAL_SNAPSHOT
   let healthProfile: string | null | undefined
+  let priorityRouting = false
   let email: { profile: string | null; value: string | undefined; at: number } | undefined
   let running: Promise<void> | undefined
   let rerun = false
@@ -79,7 +80,24 @@ export function createStatusController(options: StatusControllerOptions): Status
 
   const refreshOnce = async () => {
     const started = generation
-    const quota = await get("/v1/usage/quota").then(parseQuotaResponse, () => undefined)
+    const served = priorityRouting
+      ? await get("/telemetry/requests?limit=100").then((body) => {
+          if (!Array.isArray(body)) return undefined
+          const entries: unknown[] = body
+          return entries
+            .filter((entry): entry is { adapter: string; status: number; error: null; profileId: string; timestamp: number } =>
+              typeof entry === "object" && entry !== null && "adapter" in entry && entry.adapter === "opencode" &&
+              "status" in entry &&
+              typeof entry.status === "number" && entry.status >= 200 && entry.status < 300 &&
+              "error" in entry && entry.error == null && "profileId" in entry &&
+              typeof entry.profileId === "string" && entry.profileId.trim().length > 0 &&
+              "timestamp" in entry && typeof entry.timestamp === "number" && Number.isFinite(entry.timestamp))
+            .sort((a, b) => b.timestamp - a.timestamp)[0]?.profileId
+        }, () => undefined)
+      : undefined
+    if (started !== generation) return
+    const quotaPath = served ? `/v1/usage/quota?profile=${encodeURIComponent(served)}` : "/v1/usage/quota"
+    const quota = await get(quotaPath).then(parseQuotaResponse, () => undefined)
     // The switch already queued a rerun, which reads the incoming account.
     if (started !== generation) return
     if (!quota) {
@@ -115,14 +133,18 @@ export function createStatusController(options: StatusControllerOptions): Status
   }
 
   const checkProfile = async () => {
-    const active = await get("/profiles/health").then(parseActiveProfile, () => undefined)
+    const health = await get("/profiles/health").then((body) => body, () => undefined)
+    const active = parseActiveProfile(health)
     if (active === undefined) return
+    const priority = typeof health === "object" && health !== null && "routing" in health && health.routing === "priority"
+    const routingChanged = priorityRouting !== priority
+    priorityRouting = priority
     const previous = healthProfile
     healthProfile = active
-    if (previous === undefined || previous === active) return
+    if (previous === undefined || (previous === active && !routingChanged)) return
     // Never render the outgoing account's quota under the incoming label.
     generation += 1
-    publish({ profile: active, quota: undefined, email: undefined })
+    if (!priority) publish({ profile: active, quota: undefined, email: undefined })
     await refresh()
   }
 

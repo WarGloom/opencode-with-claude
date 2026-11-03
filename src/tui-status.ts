@@ -62,10 +62,10 @@ export function parseQuotaResponse(value: unknown): QuotaReading | undefined {
   const sessionUtilization = session ? finiteNumber(session.utilization) : undefined
   return {
     profile: nonEmptyString(value.profile) ?? null,
-    weeklyRemaining: utilization === undefined ? null : remainingPercent(utilization),
-    readAt: utilization === undefined ? null : (finiteNumber(weekly?.observedAt) ?? null),
+    weeklyRemaining: utilization === undefined ? (weekly?.status === "rejected" ? 0 : null) : remainingPercent(utilization),
+    readAt: utilization === undefined && weekly?.status !== "rejected" ? null : (finiteNumber(weekly?.observedAt) ?? null),
     rejected: weekly?.status === "rejected" || session?.status === "rejected",
-    sessionRemaining: sessionUtilization === undefined ? null : remainingPercent(sessionUtilization),
+    sessionRemaining: sessionUtilization === undefined ? (session?.status === "rejected" ? 0 : null) : remainingPercent(sessionUtilization),
     sessionResetsAt: (session ? finiteNumber(session.resetsAt) : undefined) ?? null,
     weeklyResetsAt: (weekly ? finiteNumber(weekly.resetsAt) : undefined) ?? null,
   }
@@ -164,7 +164,7 @@ export function formatStatusLine(
   const label = [profile, email].filter(Boolean).join(SEPARATOR) || "Claude"
   const quota = snapshot.quota
 
-  if (!quota || quota.weeklyRemaining === null) {
+  if (!quota || (quota.weeklyRemaining === null && !quota.rejected)) {
     const detail = snapshot.reachable === false ? "unavailable" : "7d ?"
     return { text: `${label}${SEPARATOR}${detail}`, tone: "unknown" }
   }
@@ -176,8 +176,9 @@ export function formatStatusLine(
     return left ? ` resets in ${left}` : ""
   }
   const sessionPart = session != null ? `5h ${session}%${resetPart(quota.sessionResetsAt)}${SEPARATOR}` : ""
-  const text = `${label}${SEPARATOR}${sessionPart}7d ${quota.weeklyRemaining}%${resetPart(quota.weeklyResetsAt)}${stale ? " stale" : ""}`
-  const lowest = Math.min(quota.weeklyRemaining, session ?? 100)
+  const weeklyPart = quota.weeklyRemaining === null ? "7d ?" : `7d ${quota.weeklyRemaining}%${resetPart(quota.weeklyResetsAt)}${stale ? " stale" : ""}`
+  const text = `${label}${SEPARATOR}${sessionPart}${weeklyPart}`
+  const lowest = Math.min(quota.weeklyRemaining ?? 100, session ?? 100)
   if (quota.rejected || lowest <= 0) return { text, tone: "danger" }
   if (stale || lowest < WARNING_REMAINING_PERCENT) return { text, tone: "warning" }
   return { text, tone: "normal" }

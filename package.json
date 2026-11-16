@@ -16,7 +16,7 @@
     }
   },
   "dependencies": {
-    "@rynfar/meridian": "1.91.0",
+    "@rynfar/meridian": "1.92.0",
     "@rynfar/meridian-plugin-opencode-scrub": "0.3.0"
   },
   "devDependencies": {

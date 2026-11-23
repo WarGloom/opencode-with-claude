@@ -93,6 +93,23 @@ async function acquireRuntime(log: LogFn) {
 }
 
 async function startRuntime(log: LogFn): Promise<Runtime> {
+  const externalURL = process.env.MERIDIAN_URL
+  if (externalURL !== undefined) {
+    const value = externalURL.trim()
+    try {
+      const url = new URL(value)
+      if ((url.protocol === "http:" || url.protocol === "https:") &&
+          !url.username && !url.password && url.pathname === "/" &&
+          !url.search && !url.hash) {
+        const baseURL = url.origin
+        return { proxy: { port: 0, close: async () => {} }, baseURL }
+      }
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error
+    }
+    void log("error", "Invalid MERIDIAN_URL: expected an HTTP(S) origin without a path, credentials, query, or fragment; starting an in-process proxy.")
+  }
+
   const meridianConfig = loadMeridianConfig(log)
   const summary = summarizeMeridianConfig(meridianConfig)
   if (summary) void log("info", summary)

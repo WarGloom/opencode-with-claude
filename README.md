@@ -208,6 +208,10 @@ which Meridian reads to run each session in the right project directory.
 
 For parity with the `meridian` CLI:
 
+- `MERIDIAN_URL` — connect to an already-running Meridian using its HTTP(S)
+  origin, for example `http://127.0.0.1:3456`, without `/v1`. With this set,
+  `MERIDIAN_PATH`, `CLAUDE_PROXY_PORT`, `CLAUDE_PROXY_HOST`, and `MERIDIAN_HOST`
+  do not apply. Invalid values fall back to an in-process proxy.
 - `MERIDIAN_PROFILES` — JSON array of profile objects; wins over `profiles.json`.
 - `MERIDIAN_DEFAULT_PROFILE` — profile id; wins over `settings.activeProfile`.
 - `MERIDIAN_PATH` — run your own Meridian build instead of the bundled one
